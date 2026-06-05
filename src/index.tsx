@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
+import { HTTPException } from "hono/http-exception";
 import type { AppEnv } from "./env.ts";
 import { Layout, doc } from "./ui/layout.tsx";
 import { Landing } from "./ui/landing.tsx";
@@ -47,6 +48,9 @@ app.notFound((c) =>
 );
 
 app.onError((err, c) => {
+  // Let framework HTTP exceptions (e.g. basic-auth's 401 + WWW-Authenticate,
+  // which triggers the browser login prompt) pass through unchanged.
+  if (err instanceof HTTPException) return err.getResponse();
   console.error("Unhandled error:", err);
   return c.html(
     doc(
