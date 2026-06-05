@@ -145,6 +145,30 @@ export const Landing: FC = () => (
     title="AI Agents for Greenscape Pro"
     description="An external proposal generator, synced to GoHighLevel in real time, that turns dictated site-walk notes into priced proposals on a local LLM — built for Greenscape Pro by License & Scale."
   >
+    {/* ── FILM HERO (autoplay explainer, full-bleed, first thing on the page) ── */}
+    <section class="film-hero" style="position:relative;width:100%;background:#0a0d0b;line-height:0">
+      <video
+        id="explainer"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+        poster="/explainer-poster.jpg"
+        style="display:block;width:100%;height:auto;max-height:100svh;object-fit:cover;background:#0a0d0b;cursor:pointer"
+      >
+        <source src="/explainer.mp4" type="video/mp4" />
+      </video>
+      <button
+        id="explainer-unmute"
+        type="button"
+        style="position:absolute;right:20px;bottom:20px;z-index:3;display:inline-flex;align-items:center;gap:8px;font:700 14px/1 var(--font);letter-spacing:.01em;color:#fff;background:rgba(18,53,42,.74);border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:11px 18px;border-radius:999px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4)"
+      >
+        🔊 Tap for sound
+      </button>
+      <script>{raw("(function(){var v=document.getElementById('explainer');var b=document.getElementById('explainer-unmute');if(!v)return;function on(){v.muted=false;v.currentTime=0;var p=v.play();if(p&&p.catch)p.catch(function(){});if(b)b.style.display='none';}if(b)b.addEventListener('click',on);v.addEventListener('click',on);})();")}</script>
+    </section>
+
     {/* ── HERO (2-column) ── */}
     <header class="hero">
       <div class="container">

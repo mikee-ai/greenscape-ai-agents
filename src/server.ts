@@ -93,6 +93,8 @@ loadBinary("hero-demo.mp4", "video/mp4");
 loadBinary("hero-demo-poster.jpg", "image/jpeg");
 loadBinary("build-demo.mp4", "video/mp4");
 loadBinary("build-demo-poster.jpg", "image/jpeg");
+loadBinary("explainer.mp4", "video/mp4");
+loadBinary("explainer-poster.jpg", "image/jpeg");
 
 function serveRange(req: Request, buf: Buffer, type: string): Response {
   const size = buf.length;
