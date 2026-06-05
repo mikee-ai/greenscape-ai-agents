@@ -152,21 +152,23 @@ export const Landing: FC = () => (
         autoplay
         muted
         loop
+        controls
+        controlslist="nodownload"
         playsinline
         preload="auto"
-        poster="/explainer-poster.jpg"
-        style="display:block;width:100%;height:auto;max-height:100svh;object-fit:cover;background:#0a0d0b;cursor:pointer"
+        poster="/explainer-poster.jpg?v=2"
+        style="display:block;width:100%;height:auto;max-height:100svh;object-fit:cover;background:#0a0d0b"
       >
-        <source src="/explainer.mp4" type="video/mp4" />
+        <source src="/explainer.mp4?v=2" type="video/mp4" />
       </video>
       <button
         id="explainer-unmute"
         type="button"
-        style="position:absolute;right:20px;bottom:20px;z-index:3;display:inline-flex;align-items:center;gap:8px;font:700 14px/1 var(--font);letter-spacing:.01em;color:#fff;background:rgba(18,53,42,.74);border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:11px 18px;border-radius:999px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4)"
+        style="position:absolute;right:20px;top:20px;z-index:3;display:inline-flex;align-items:center;gap:8px;font:700 14px/1 var(--font);letter-spacing:.01em;color:#fff;background:rgba(18,53,42,.74);border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:11px 18px;border-radius:999px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4)"
       >
         🔊 Tap for sound
       </button>
-      <script>{raw("(function(){var v=document.getElementById('explainer');var b=document.getElementById('explainer-unmute');if(!v)return;function on(){v.muted=false;v.currentTime=0;var p=v.play();if(p&&p.catch)p.catch(function(){});if(b)b.style.display='none';}if(b)b.addEventListener('click',on);v.addEventListener('click',on);})();")}</script>
+      <script>{raw("(function(){var v=document.getElementById('explainer');var b=document.getElementById('explainer-unmute');if(!v)return;function on(){v.muted=false;v.currentTime=0;var p=v.play();if(p&&p.catch)p.catch(function(){});if(b)b.style.display='none';}if(b)b.addEventListener('click',on);})();")}</script>
     </section>
 
     {/* ── HERO (2-column) ── */}
