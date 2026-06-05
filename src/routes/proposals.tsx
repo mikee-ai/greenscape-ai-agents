@@ -86,11 +86,14 @@ proposals.post("/transcribe", async (c) => {
   const whisper = c.env.WHISPER_URL;
   if (!whisper) return c.json({ error: "voice-to-text not configured" }, 503);
   const body = await c.req.parseBody();
-  const file = body["audio"];
-  if (!(file instanceof File)) return c.json({ error: "no audio uploaded" }, 400);
+  const file = body["audio"] as unknown as Blob | string | undefined;
+  // Node 18 has no global `File`; duck-type a Blob-like upload instead.
+  if (!file || typeof file === "string" || typeof (file as Blob).arrayBuffer !== "function") {
+    return c.json({ error: "no audio uploaded" }, 400);
+  }
   try {
     const fd = new FormData();
-    fd.append("audio_file", file, "note.webm");
+    fd.append("audio_file", file as Blob, "note.webm");
     const r = await fetch(`${whisper.replace(/\/$/, "")}/asr?output=txt&language=en&task=transcribe`, {
       method: "POST",
       body: fd,
