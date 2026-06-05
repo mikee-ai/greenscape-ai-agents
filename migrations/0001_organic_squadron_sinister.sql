@@ -1,0 +1,1 @@
+ALTER TABLE `leads` ADD `ghl_opportunity_id` text;

@@ -27,7 +27,7 @@ async function loadAppCss(): Promise<string> {
   try {
     const fs = await import("node:fs");
     const { fileURLToPath } = await import("node:url");
-    for (const p of [fileURLToPath(new URL("../public/app.css", import.meta.url)), "public/app.css"]) {
+    for (const p of [fileURLToPath(new URL("../public/app.css", import.meta.url).href), "public/app.css"]) {
       try {
         return fs.readFileSync(p, "utf8");
       } catch {

@@ -88,7 +88,7 @@ reactivation.post("/:id/replied", async (c) => {
 
 reactivation.post("/:id/rewon", async (c) => {
   const db = getDb(c.env.DB);
-  await markRewon(db, c.req.param("id"));
+  await markRewon(c.env, c.req.param("id"));
   await logEvent(db, { type: "reactivation.rewon", reactivationId: c.req.param("id") });
   return c.redirect("/admin/reactivation");
 });

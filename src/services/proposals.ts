@@ -1,8 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import type { Env } from "../env.ts";
 import { getDb, type DB } from "../db/client.ts";
 import { proposals, proposalLineItems, leads, type Proposal } from "../db/schema.ts";
 import { newId, now, publicToken } from "../lib/ids.ts";
+import { formatCents } from "../lib/money.ts";
 import { logEvent } from "./events.ts";
 import { getSettings, toPricingSettings } from "./settings.ts";
 import { getActiveCatalog } from "./catalog.ts";
@@ -11,7 +12,20 @@ import { extractScope } from "../ai/extract.ts";
 import { draftProposalCopy } from "../ai/draft.ts";
 import { mapScopeToLineItems } from "../pricing/mapScope.ts";
 import { computeTotals } from "../pricing/compute.ts";
-import { sendProposalEmail } from "./ses.ts";
+import { sendProposalEmail, escapeHtml } from "./ses.ts";
+import {
+  ghlConfigured,
+  ghlEmailEnabled,
+  upsertContact,
+  createOpportunity,
+  updateOpportunity,
+  findOpenOpportunityByContact,
+  setContactCustomFields,
+  addContactNote,
+  addContactTask,
+  sendEmailViaGhl,
+  GHL_STAGE,
+} from "./ghl.ts";
 
 export async function createProposal(db: DB, leadId: string): Promise<string> {
   const id = newId();
@@ -162,7 +176,7 @@ export async function runProposalGeneration(env: Env, proposalId: string): Promi
       })
       .where(eq(proposals.id, proposalId));
 
-    if (p.leadId) await setLeadLifecycle(db, p.leadId, "quoted");
+    if (p.leadId) await setLeadLifecycle(db, p.leadId, "quoted", env);
   } catch (err) {
     console.error("runProposalGeneration failed:", err);
     await db
@@ -183,49 +197,190 @@ export type ApproveResult =
  * The SES email is best-effort: a failure still marks the proposal "sent" (the
  * public link works) and is recorded as an event.
  */
+/** Reserved/demo recipient domains (RFC 2606 + example.*) — never send real email. */
+function isReservedRecipient(addr: string): boolean {
+  const domain = addr.trim().toLowerCase().split("@").pop() ?? "";
+  return (
+    domain === "localhost" ||
+    /\.(example|test|invalid|localhost)$/.test(domain) ||
+    /^example\.(com|net|org)$/.test(domain)
+  );
+}
+
+/** Push a won/lost close-out to GHL (system of record): move the opportunity to
+ *  Closed with the right status, set the proposal_status field, optional note.
+ *  Self-heals a missing/stale opp id (search → recreate). Logs honestly:
+ *  ghl.synced only when an opp write actually happened, else ghl.skipped. */
+export async function syncCloseOut(
+  db: DB,
+  env: Env,
+  leadId: string,
+  status: "won" | "lost",
+  opts: { proposalId?: string; reactivationId?: string; note?: string } = {},
+): Promise<void> {
+  const { proposalId, reactivationId, note } = opts;
+  try {
+    const [lead] = await db.select().from(leads).where(eq(leads.id, leadId)).limit(1);
+    if (!lead) return;
+    let contactId = lead.ghlContactId ?? null;
+    if (!contactId) {
+      contactId = await upsertContact(env, { ...lead, source: lead.source ?? "greenscape-app" });
+      await db.update(leads).set({ ghlContactId: contactId }).where(eq(leads.id, leadId));
+    }
+    let oppId = lead.ghlOpportunityId ?? null;
+    if (!oppId) oppId = await findOpenOpportunityByContact(env, contactId).catch(() => null);
+    if (oppId) {
+      await updateOpportunity(env, oppId, { stageId: GHL_STAGE.closed, status });
+    } else {
+      const oppName = `${lead.name} — ${String(lead.projectType || "project").replace(/_/g, " ")}`;
+      oppId = await createOpportunity(env, { contactId, name: oppName, stageId: GHL_STAGE.closed, status });
+      if (oppId !== lead.ghlOpportunityId) await db.update(leads).set({ ghlOpportunityId: oppId }).where(eq(leads.id, leadId));
+    }
+    await setContactCustomFields(env, contactId, { proposalStatus: status });
+    if (note) await addContactNote(env, contactId, note);
+    await logEvent(db, { type: "ghl.synced", proposalId, reactivationId, leadId, detail: { stage: "closed", status, contactId, oppId } });
+  } catch (err) {
+    await logEvent(db, { type: "ghl.failed", status: "error", proposalId, reactivationId, leadId, detail: { error: String(err) } });
+  }
+}
+
 export async function approveAndSend(env: Env, proposalId: string): Promise<ApproveResult> {
   const db = getDb(env.DB);
-  const data = await getProposalWithItems(db, proposalId);
+  let data = await getProposalWithItems(db, proposalId);
   if (!data) return { ok: false, reason: "not_reviewable" };
+  // Defensive: refresh the money snapshot from the current line items before we
+  // lock + email + sync, so a stale total_cents can never reach the customer or GHL.
+  if (data.proposal.status === "needs_review") {
+    await recomputeAndSave(db, proposalId).catch(() => {});
+    data = await getProposalWithItems(db, proposalId);
+    if (!data) return { ok: false, reason: "not_reviewable" };
+  }
   const { proposal, lead, items } = data;
 
-  if (proposal.status !== "needs_review") return { ok: false, reason: "not_reviewable" };
+  // Allow re-entry from "approved" (crash recovery between the CAS and the send flip).
+  if (proposal.status !== "needs_review" && proposal.status !== "approved") return { ok: false, reason: "not_reviewable" };
   if (items.length === 0) return { ok: false, reason: "no_items" };
   if (items.some((i) => i.unitPriceCents <= 0 || i.quantity <= 0)) return { ok: false, reason: "unpriced" };
 
-  const t = now();
-  await db.update(proposals).set({ status: "approved", approvedAt: t, updatedAt: t }).where(eq(proposals.id, proposalId));
-  await logEvent(db, { type: "proposal.approved", proposalId, leadId: proposal.leadId, detail: { totalCents: proposal.totalCents } });
+  // Atomic compare-and-swap: only one concurrent Approve wins needs_review→approved.
+  if (proposal.status === "needs_review") {
+    const t = now();
+    const claimed = await db
+      .update(proposals)
+      .set({ status: "approved", approvedAt: t, updatedAt: t })
+      .where(and(eq(proposals.id, proposalId), eq(proposals.status, "needs_review")))
+      .returning({ id: proposals.id });
+    if (claimed.length === 0) return { ok: false, reason: "not_reviewable" }; // lost the race
+    await logEvent(db, { type: "proposal.approved", proposalId, leadId: proposal.leadId, detail: { totalCents: proposal.totalCents } });
+  }
 
-  // Email is best-effort (idempotent via emailMessageId null-guard).
-  if (lead?.email && !proposal.emailMessageId) {
+  const publicUrl = `${env.PUBLIC_BASE_URL}/p/${proposal.publicToken}`;
+  const first = lead?.name?.split(" ")[0] || "there";
+
+  // Resolve the GHL contact once, up front (whenever GHL is configured), so the
+  // GHL-email path and the write-back share it.
+  let contactId: string | null = lead?.ghlContactId ?? null;
+  if (ghlConfigured(env) && lead && !contactId) {
     try {
-      const res = await sendProposalEmail(env, {
-        to: lead.email,
-        clientName: lead.name,
-        totalCents: proposal.totalCents ?? 0,
-        depositCents: proposal.depositCents ?? 0,
-        publicUrl: `${env.PUBLIC_BASE_URL}/p/${proposal.publicToken}`,
-      });
-      await db.update(proposals).set({ emailMessageId: res.messageId }).where(eq(proposals.id, proposalId));
-      await logEvent(db, { type: "email.sent", proposalId, detail: { to: lead.email, messageId: res.messageId } });
+      contactId = await upsertContact(env, { ...lead, source: lead.source ?? "greenscape-app" });
+      await db.update(leads).set({ ghlContactId: contactId }).where(eq(leads.id, lead.id));
     } catch (err) {
-      await logEvent(db, { type: "email.failed", status: "error", proposalId, detail: { to: lead.email, error: String(err) } });
+      await logEvent(db, { type: "ghl.failed", status: "error", proposalId, leadId: lead.id, detail: { step: "ensureContact", error: String(err) } });
+      contactId = null;
+    }
+  }
+
+  // Email is best-effort. Reserved/demo domains are skipped (hard-bounce guard).
+  // GHL-first (logs on the timeline) when enabled; otherwise SES. Name is escaped.
+  if (lead?.email && isReservedRecipient(lead.email)) {
+    await logEvent(db, { type: "email.skipped", proposalId, detail: { reason: "reserved/demo domain", to: lead.email } });
+  } else if (lead?.email && !proposal.emailMessageId) {
+    const subject = "Your Greenscape Pro proposal is ready";
+    let sent = false;
+    if (ghlEmailEnabled(env) && contactId) {
+      try {
+        const html =
+          `<p>Hi ${escapeHtml(first)},</p><p>Your proposal is ready to review online.</p>` +
+          `<p><a href="${publicUrl}">View &amp; accept your proposal</a></p>`;
+        const res = await sendEmailViaGhl(env, { contactId, subject, html });
+        await db.update(proposals).set({ emailMessageId: res.messageId }).where(eq(proposals.id, proposalId));
+        await logEvent(db, { type: "email.sent", proposalId, detail: { via: "ghl", to: lead.email, messageId: res.messageId } });
+        sent = true;
+      } catch (err) {
+        await logEvent(db, { type: "email.failed", status: "error", proposalId, detail: { via: "ghl", to: lead.email, error: String(err) } });
+      }
+    }
+    if (!sent) {
+      try {
+        const res = await sendProposalEmail(env, {
+          to: lead.email,
+          clientName: lead.name,
+          totalCents: proposal.totalCents ?? 0,
+          depositCents: proposal.depositCents ?? 0,
+          publicUrl,
+        });
+        await db.update(proposals).set({ emailMessageId: res.messageId }).where(eq(proposals.id, proposalId));
+        await logEvent(db, { type: "email.sent", proposalId, detail: { via: "ses", to: lead.email, messageId: res.messageId } });
+      } catch (err) {
+        await logEvent(db, { type: "email.failed", status: "error", proposalId, detail: { via: "ses", to: lead.email, error: String(err) } });
+      }
     }
   } else if (!lead?.email) {
     await logEvent(db, { type: "email.skipped", proposalId, detail: { reason: "no lead email" } });
   }
 
+  // Flip to "sent" BEFORE the GHL write-back so a write-back failure can never
+  // strand the proposal in "approved" — the public link works the moment it's sent.
   await db.update(proposals).set({ status: "sent", sentAt: now(), updatedAt: now() }).where(eq(proposals.id, proposalId));
+
+  // GHL write-back, per-step: a mid-sequence failure is isolated and honestly
+  // reported (ghl.partial). Self-heals a missing/stale opp id via search.
+  if (ghlConfigured(env) && lead && contactId) {
+    const dollars = (proposal.totalCents ?? 0) / 100;
+    const oppName = `${lead.name} — ${String(lead.projectType || "project").replace(/_/g, " ")}`;
+    let oppId = lead.ghlOpportunityId ?? null;
+    if (!oppId) oppId = await findOpenOpportunityByContact(env, contactId).catch(() => null);
+    const failed: string[] = [];
+    const steps: Array<[string, () => Promise<unknown>]> = [
+      ["customFields", () => setContactCustomFields(env, contactId!, { proposalTotal: dollars, proposalStatus: "sent", proposalUrl: publicUrl })],
+      ["opportunity", async () => {
+        if (oppId) {
+          await updateOpportunity(env, oppId, { stageId: GHL_STAGE.proposalSent, status: "open", monetaryValue: dollars, name: oppName });
+        } else {
+          oppId = await createOpportunity(env, { contactId: contactId!, name: oppName, stageId: GHL_STAGE.proposalSent, status: "open", monetaryValue: dollars });
+        }
+        if (oppId && oppId !== lead.ghlOpportunityId) await db.update(leads).set({ ghlOpportunityId: oppId }).where(eq(leads.id, lead.id));
+      }],
+      ["note", () => addContactNote(env, contactId!, `Proposal sent — total ${formatCents(proposal.totalCents ?? 0)}. ${publicUrl}`)],
+      ["task", () => addContactTask(env, contactId!, { title: `Follow up on proposal for ${lead.name}`, dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() })],
+    ];
+    for (const [name, fn] of steps) {
+      try {
+        await fn();
+      } catch (err) {
+        failed.push(name);
+        await logEvent(db, { type: "ghl.failed", status: "error", proposalId, leadId: lead.id, detail: { step: name, error: String(err) } });
+      }
+    }
+    await logEvent(db, { type: failed.length ? "ghl.partial" : "ghl.synced", proposalId, leadId: lead.id, detail: { stage: "proposalSent", contactId, oppId, failedSteps: failed } });
+  }
+
   return { ok: true };
 }
 
-export async function markLost(db: DB, proposalId: string) {
-  const p = await getProposal(db, proposalId);
-  if (!p) return;
-  await db.update(proposals).set({ status: "lost", updatedAt: now() }).where(eq(proposals.id, proposalId));
+export async function markLost(env: Env, proposalId: string) {
+  const db = getDb(env.DB);
+  // CAS: claim the transition once (not from terminal states) so the GHL push fires at most once.
+  const claimed = await db
+    .update(proposals)
+    .set({ status: "lost", updatedAt: now() })
+    .where(and(eq(proposals.id, proposalId), ne(proposals.status, "lost"), ne(proposals.status, "deposit_paid")))
+    .returning({ leadId: proposals.leadId });
+  if (claimed.length === 0) return;
+  const leadId = claimed[0].leadId;
   // returns the lead to the closed-lost pile (reactivation candidate)
-  if (p.leadId) await db.update(leads).set({ lifecycle: "closed_lost", closedLostReason: "quote_lost", closedLostAt: now() }).where(eq(leads.id, p.leadId));
+  if (leadId) await db.update(leads).set({ lifecycle: "closed_lost", closedLostReason: "quote_lost", closedLostAt: now() }).where(eq(leads.id, leadId));
+  if (ghlConfigured(env) && leadId) await syncCloseOut(db, env, leadId, "lost", { proposalId });
 }
 
 /** Mark first customer view (sent → viewed). Idempotent. */
@@ -236,12 +391,19 @@ export async function markViewed(db: DB, proposalId: string) {
   }
 }
 
-export async function markDepositPaid(db: DB, proposalId: string) {
-  const p = await getProposal(db, proposalId);
-  if (!p || p.status === "deposit_paid") return;
-  await db.update(proposals).set({ status: "deposit_paid", paidAt: now(), updatedAt: now() }).where(eq(proposals.id, proposalId));
-  await logEvent(db, { type: "deposit.paid", proposalId, leadId: p.leadId, detail: { depositCents: p.depositCents } });
-  if (p.leadId) await db.update(leads).set({ lifecycle: "won" }).where(eq(leads.id, p.leadId));
+export async function markDepositPaid(env: Env, proposalId: string) {
+  const db = getDb(env.DB);
+  // CAS: claim deposit_paid once so the GHL won-sync + note fire at most once.
+  const claimed = await db
+    .update(proposals)
+    .set({ status: "deposit_paid", paidAt: now(), updatedAt: now() })
+    .where(and(eq(proposals.id, proposalId), ne(proposals.status, "deposit_paid")))
+    .returning({ leadId: proposals.leadId, depositCents: proposals.depositCents });
+  if (claimed.length === 0) return;
+  const { leadId, depositCents } = claimed[0];
+  await logEvent(db, { type: "deposit.paid", proposalId, leadId, detail: { depositCents } });
+  if (leadId) await db.update(leads).set({ lifecycle: "won" }).where(eq(leads.id, leadId));
+  if (ghlConfigured(env) && leadId) await syncCloseOut(db, env, leadId, "won", { proposalId, note: "Deposit paid — opportunity won." });
 }
 
 export async function savePaypalOrder(db: DB, proposalId: string, orderId: string, approveUrl: string) {

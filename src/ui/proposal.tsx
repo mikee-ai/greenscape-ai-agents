@@ -114,7 +114,7 @@ export const ReviewView: FC<{
           <div class="row between wrap">
             <div>
               <h3 style="margin:0">
-                {proposal.status === "deposit_paid" ? "✅ Deposit paid — won!" : proposal.status === "viewed" ? "👀 Sent · viewed by customer" : proposal.status === "lost" ? "Marked lost" : "✓ Sent to customer"}
+                {proposal.status === "deposit_paid" ? "✅ Deposit paid — won!" : proposal.status === "viewed" ? "👀 Sent · viewed by customer" : proposal.status === "lost" ? "Marked lost" : proposal.status === "approved" ? "⏳ Approved — finishing send…" : "✓ Sent to customer"}
               </h3>
               <p class="muted" style="margin:4px 0 0">
                 {proposal.emailMessageId ? "Emailed via SES. " : ""}

@@ -139,7 +139,7 @@ admin.post("/leads", async (c) => {
     budgetHintCents: Number.isFinite(budget) ? dollarsToCents(budget) : undefined,
     source: "manual",
     notes: str(form.notes),
-  });
+  }, c.env);
   await logEvent(db, { type: "lead.created", leadId: id, detail: { source: "manual", name } });
   return c.redirect(`/admin/leads/${id}`);
 });

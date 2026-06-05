@@ -93,6 +93,6 @@ export async function sendEmail(
   return { messageId: json.MessageId ?? "unknown" };
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

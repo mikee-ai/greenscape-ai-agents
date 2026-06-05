@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env.ts";
 import { getDb } from "../db/client.ts";
-import { createLead } from "../services/leads.ts";
+import { createLead, getLeadByGhlContactId } from "../services/leads.ts";
 import { logEvent } from "../services/events.ts";
 import { leadWebhookSchema } from "../lib/validation.ts";
 import { dollarsToCents } from "../lib/money.ts";
@@ -38,6 +38,15 @@ webhook.post("/lead", async (c) => {
   }
 
   const d = parsed.data;
+  // Idempotency: GHL/Meta webhooks retry. A re-delivery for a known contact must
+  // not create a duplicate lead (which would spawn a duplicate GHL opportunity).
+  if (d.ghl_contact_id) {
+    const existing = await getLeadByGhlContactId(db, d.ghl_contact_id);
+    if (existing) {
+      await logEvent(db, { type: "lead.duplicate", leadId: existing.id, detail: { ghlContactId: d.ghl_contact_id } });
+      return c.json({ ok: true, lead_id: existing.id, duplicate: true });
+    }
+  }
   const id = await createLead(db, {
     name: d.name,
     email: d.email || undefined,
@@ -49,7 +58,7 @@ webhook.post("/lead", async (c) => {
     notes: d.notes,
     ghlContactId: d.ghl_contact_id,
     rawPayload: body,
-  });
+  }, c.env);
 
   await logEvent(db, { type: "lead.created", leadId: id, detail: { source: d.source || "meta", name: d.name } });
   return c.json({ ok: true, lead_id: id });

@@ -12,9 +12,13 @@ if (url.startsWith("file:")) {
 }
 
 const client = createClient({ url });
-const mig = readFileSync("migrations/0000_init.sql", "utf8");
+// Apply every migration in journal order (not just 0000) so a clean DB gets all
+// later columns (e.g. leads.ghl_opportunity_id from 0001).
+const journal = JSON.parse(readFileSync("migrations/meta/_journal.json", "utf8"));
+for (const entry of journal.entries ?? []) {
+  await client.executeMultiple(readFileSync(`migrations/${entry.tag}.sql`, "utf8"));
+}
 const seed = readFileSync("seed/seed.sql", "utf8");
-await client.executeMultiple(mig);
 await client.executeMultiple(seed);
 const r = await client.execute(
   "SELECT (SELECT COUNT(*) FROM pricing_catalog) c, (SELECT COUNT(*) FROM leads) l",

@@ -48,6 +48,10 @@ const env: Env = {
   PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID ?? "",
   PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET ?? "",
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? "",
+  GHL_API_KEY: process.env.GHL_API_KEY,
+  GHL_LOCATION_ID: process.env.GHL_LOCATION_ID,
+  GHL_PIPELINE_ID: process.env.GHL_PIPELINE_ID,
+  GHL_EMAIL_SEND: process.env.GHL_EMAIL_SEND,
 };
 
 const ctx = {
@@ -72,6 +76,46 @@ function loadStatic(rel: string, type: string) {
 loadStatic("app.css", "text/css; charset=utf-8");
 loadStatic("dictate.js", "text/javascript; charset=utf-8");
 
+// Binary assets (video) served with HTTP Range support so browsers can seek and
+// Safari/iOS can stream. Read as a Buffer (not utf8) and held in memory like STATIC.
+const BINARY: Record<string, { buf: Buffer; type: string }> = {};
+function loadBinary(rel: string, type: string) {
+  for (const p of [fileURLToPath(new URL("../public/" + rel, import.meta.url).href), "public/" + rel]) {
+    try {
+      BINARY["/" + rel] = { buf: readFileSync(p), type };
+      return;
+    } catch {
+      /* try next path */
+    }
+  }
+}
+loadBinary("hero-demo.mp4", "video/mp4");
+loadBinary("hero-demo-poster.jpg", "image/jpeg");
+loadBinary("build-demo.mp4", "video/mp4");
+loadBinary("build-demo-poster.jpg", "image/jpeg");
+
+function serveRange(req: Request, buf: Buffer, type: string): Response {
+  const size = buf.length;
+  const headers: Record<string, string> = {
+    "content-type": type,
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=3600",
+  };
+  const m = (req.headers.get("range") ?? "").match(/^bytes=(\d*)-(\d*)$/);
+  if (m) {
+    const start = m[1] ? parseInt(m[1], 10) : 0;
+    const end = m[2] ? parseInt(m[2], 10) : size - 1;
+    if (start > end || end >= size) {
+      return new Response(null, { status: 416, headers: { ...headers, "content-range": `bytes */${size}` } });
+    }
+    return new Response(buf.subarray(start, end + 1), {
+      status: 206,
+      headers: { ...headers, "content-range": `bytes ${start}-${end}/${size}`, "content-length": String(end - start + 1) },
+    });
+  }
+  return new Response(buf, { status: 200, headers: { ...headers, "content-length": String(size) } });
+}
+
 const port = Number(process.env.PORT ?? 8080);
 const hostname = process.env.HOST ?? "127.0.0.1";
 
@@ -83,6 +127,8 @@ serve(
       const u = new URL(req.url);
       const st = STATIC[u.pathname];
       if (st) return new Response(st.body, { headers: { "content-type": st.type, "cache-control": "no-cache" } });
+      const bin = BINARY[u.pathname];
+      if (bin) return serveRange(req, bin.buf, bin.type);
       return app.fetch(req, env as any, ctx as any);
     },
   },

@@ -9,29 +9,29 @@ and founder-constrained**. The ranking follows that.
 ### 1. Speed-to-Quote Proposal Agent  *(P0 — built)*
 **Purpose:** Turn Marcus's site-walk notes into a priced, brand-voiced proposal in minutes, so he *approves* proposals instead of *writing* them.
 
-- Claude extracts a structured scope from dictated/typed site-walk notes.
+- A local LLM (Ollama `qwen3:8b`, $0/proposal) extracts a structured scope from dictated/typed site-walk notes.
 - Pricing is computed in **code** from the 200-item catalog — the AI never sets a price.
-- Claude drafts the premium proposal prose; Marcus reviews, edits, and approves (human-in-the-loop).
+- The LLM drafts the premium proposal prose; Marcus reviews, edits, and approves (human-in-the-loop).
 - On approve: emails the customer the proposal + a 50% deposit link; tracks the quote cycle.
 
 **Replaces:** Marcus personally drafting every proposal — the 6–9 day step where *"I am the bottleneck."*
 **ROI:** 35–40% of qualified leads are lost to faster competitors at the proposal stage. Recovering even
 half is ~15–25 extra signed projects/yr × $28k ≈ **$420k–$700k/yr in recovered revenue**, plus Marcus's
-evenings back. Runs for ~**$3–4/month** in AI.
+evenings back. Runs on a **local LLM (Ollama) at $0/proposal** — no API cost (Claude is an optional provider).
 **Why #1:** It is the single highest-leverage intervention in the business — it plugs the biggest leak *and*
 removes the founder as the single point of failure, which is the precondition for hitting the $5.5M goal.
 
 ### 2. Closed-Lost Reactivation Agent  *(built)*
 **Purpose:** Re-engage the 1,400+ dead leads with personalized, Marcus-voiced outreach — found money.
 
-- Pulls each lead's real context from CRM notes; Claude writes a personal message (never a blast).
+- Pulls each lead's real context from CRM notes; the LLM writes a personal message (never a blast).
 - Marcus approves the batch before anything sends; generic-sounding drafts are auto-flagged.
 - Sends via email; tracks sent → replied → re-won.
 
 **Replaces:** Brittany's sporadic, manual re-engagement blasts.
 **ROI:** 1,400 × 2% re-close × $28k ≈ **$784k latent revenue**; even 0.5% is ~$196k. Marginal cost is pennies per message.
 **Why #2:** It's revenue the founder isn't even counting, the lowest-risk build, and it reuses Agent #1's
-engine (Claude + CRM context + approve-then-send) — so it ships at ~40% marginal effort.
+engine (the LLM + CRM context + approve-then-send) — so it ships at ~40% marginal effort.
 
 ### 3. Post-Sign Follow-Up Agent
 **Purpose:** Automate the stalled post-signing stages — HOA, permits, deposits, and customer nudges — that delay revenue and crew scheduling.
@@ -94,12 +94,12 @@ Revisit it after the revenue engines (#1, #2) are live and self-funding.
 ## Interdependencies & honest trade-offs
 
 - **#1 unblocks everything.** Removing the founder bottleneck is what lets added lead/quote volume (#5) convert instead of pile up.
-- **#1 → #2 is mostly reuse.** Same engine (Claude + CRM context + human-approve + send); and *lost #1 quotes flow into #2's pile.* Build #1, get #2 cheaply.
+- **#1 → #2 is mostly reuse.** Same engine (the LLM + CRM context + human-approve + send); and *lost #1 quotes flow into #2's pile.* Build #1, get #2 cheaply.
 - **#3 and #5 ride on GHL automation hooks** — sequence them after the revenue agents.
 - **What breaks first at scale:** the quoting agent is only as good as the pricing catalog. The day Greenscape's
   real 200-line spreadsheet drifts from what's loaded, confidence drops and review flags rise — so **catalog
   sync is the first maintenance burden**. By design the agent never invents a price (code computes from the
   catalog), so the failure mode is "flagged for review," not "wrong number sent to a customer." The next
-  investment is tightening extraction with few-shot examples from Marcus's real past proposals. In production
-  everything routes through **GoHighLevel** ("everything has to be in GHL"); this build isolates that behind a
-  clean adapter boundary but is not wired to a live GHL tenant.
+  investment is tightening extraction with few-shot examples from Marcus's real past proposals. Everything
+  routes through **GoHighLevel** ("everything has to be in GHL") — this build is **wired to a live GoHighLevel
+  account**: leads, proposals, and deposits sync in real time, with GHL as the source of truth.

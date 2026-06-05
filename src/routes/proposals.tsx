@@ -322,7 +322,7 @@ proposals.post("/:id/approve", async (c) => {
 proposals.post("/:id/lost", async (c) => {
   const db = getDb(c.env.DB);
   const id = c.req.param("id");
-  await markLost(db, id);
+  await markLost(c.env, id);
   await logEvent(db, { type: "proposal.lost", proposalId: id });
   return c.redirect(`/admin/proposals/${id}`);
 });
@@ -330,9 +330,8 @@ proposals.post("/:id/lost", async (c) => {
 // ── simulate deposit paid (demo fallback so a live demo never depends on
 //    a sandbox PayPal redirect completing) ───────────────────────────────
 proposals.post("/:id/simulate-paid", async (c) => {
-  const db = getDb(c.env.DB);
   const id = c.req.param("id");
-  await markDepositPaid(db, id);
+  await markDepositPaid(c.env, id);
   return c.redirect(`/admin/proposals/${id}`);
 });
 

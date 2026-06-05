@@ -5,9 +5,18 @@
 Two production AI agents (plus a 5-agent strategy) built for **Greenscape Pro** — a Phoenix high-end
 hardscape/landscape design-build company — for the **License & Scale** AI Developer take-home.
 
-**🌐 Live:** https://greenscape.licensescale.com  ·  **📄 Strategy:** [`STRATEGY.md`](./STRATEGY.md)  ·  **🎬 Walkthrough:** [`LOOM.md`](./LOOM.md)
+**🌐 Live:** https://greenscape.licensescale.com  ·  **📄 Strategy:** [`STRATEGY.md`](./STRATEGY.md)  ·  **🎬 Script:** [`LOOM.md`](./LOOM.md)  ·  **▶ Videos:** [product](./public/hero-demo.mp4) · [build](./public/build-demo.mp4)
 
 ![Dashboard](docs/screenshots/dashboard.png)
+
+---
+
+## 🎬 Walkthrough videos
+
+Two narrated walkthroughs embedded in this repo (they also play inline on the [live site](https://greenscape.licensescale.com)):
+
+- **▶ Product walkthrough (6:49)** — a real proposal generated, edited, sent, and closed against a **live GoHighLevel** account → [`public/hero-demo.mp4`](./public/hero-demo.mp4)
+- **▶ Built with Claude Code (3:19)** — how the whole system was built, end to end → [`public/build-demo.mp4`](./public/build-demo.mp4)
 
 ---
 
@@ -108,7 +117,7 @@ a human. Good-enough extraction → trustworthy output.
 - **Hosting:** a self-hosted Node service behind a **Cloudflare Tunnel** → greenscape.licensescale.com.
 - **LLM (pluggable):** **local Ollama `qwen3:8b` on an NVIDIA GB10 — $0/proposal, no API key** *(default)*, or **Claude** (Haiku extraction + Sonnet prose). One env var, `LLM_PROVIDER`, flips between them; both are asked for JSON matching the same schemas.
 - **DB:** **libSQL/SQLite** (or D1) via **Drizzle ORM** + SQL migrations — real persistence, money as integer cents.
-- **Integrations:** **Amazon SES** (email, SigV4 via `aws4fetch`) + **PayPal Orders v2** (deposit checkout).
+- **Integrations:** **GoHighLevel** (source of truth — real-time lead / proposal / deposit sync) + **Amazon SES** (email, SigV4 via `aws4fetch`) + **PayPal Orders v2** (deposit checkout).
 - **UI:** **Hono** server-rendered pages + a hand-written CSS design system (no framework).
 
 ## Guardrails (what happens when the model misbehaves)
@@ -177,7 +186,7 @@ docs/screenshots/  live UI captures
 
 ## Trade-offs & what's next
 
-- **Wire GoHighLevel** — the client insists "everything has to be in GHL." The code isolates that behind a clean adapter boundary (webhook in/out) but isn't yet connected to a live GHL tenant.
+- **GoHighLevel is wired live** — the client insists "everything has to be in GHL," so this build syncs leads, proposals, and deposits to a **live GoHighLevel account in real time**, with GHL as the source of truth. Next: deeper GHL automations (follow-ups, reactivation fired natively via the API).
 - **SES + PayPal go-live** — the agents currently generate + approve + publish proposals fully; turning on actual email delivery + real deposit checkout is dropping `AWS_*` / `PAYPAL_*` into `.env` (+ a verified SES sender) and `pm2 restart`.
 - **Catalog sync is the first maintenance burden** — extraction is only as good as the loaded catalog; next is few-shot extraction tuned on Marcus's real past proposals.
 - **Reply tracking** for reactivation (SES inbound / GHL webhook) instead of the manual "mark replied."

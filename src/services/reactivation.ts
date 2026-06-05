@@ -8,6 +8,8 @@ import { getSettings } from "./settings.ts";
 import { generateReactivation } from "../ai/reactivate.ts";
 import { sendEmail } from "./ses.ts";
 import { renderMarkdown } from "../lib/markdown.ts";
+import { ghlConfigured } from "./ghl.ts";
+import { syncCloseOut } from "./proposals.ts";
 
 const AVG_PROJECT_CENTS = 2_800_000; // $28,000
 const RECLOSE_RATE = 0.02; // 2% conservative
@@ -148,11 +150,16 @@ export async function setReactivationStatus(db: DB, id: string, status: string) 
   await db.update(reactivations).set({ status }).where(eq(reactivations.id, id));
 }
 
-export async function markRewon(db: DB, id: string) {
+export async function markRewon(env: Env, id: string) {
+  const db = getDb(env.DB);
   const r = await getReactivation(db, id);
   if (!r) return;
   await db.update(reactivations).set({ status: "rewon", repliedAt: now(), outcome: "rewon" }).where(eq(reactivations.id, id));
-  if (r.leadId) await db.update(leads).set({ lifecycle: "won" }).where(eq(leads.id, r.leadId));
+  if (r.leadId) {
+    await db.update(leads).set({ lifecycle: "won" }).where(eq(leads.id, r.leadId));
+    // Push the re-won deal to GHL (system of record) — the most revenue-relevant transition.
+    if (ghlConfigured(env)) await syncCloseOut(db, env, r.leadId, "won", { reactivationId: id, note: "Reactivation re-won." });
+  }
 }
 
 export interface ReactivationStats {

@@ -45,11 +45,12 @@ function normPhone(p) {
   const d = String(p).replace(/\D/g, "");
   if (d.length === 10) return "+1" + d;
   if (d.length === 11 && d[0] === "1") return "+" + d;
+  if (String(p).trim().startsWith("+") && d.length >= 8 && d.length <= 15) return "+" + d; // valid intl E.164
   return undefined;
 }
-async function api(path, body, attempt = 0) {
-  const res = await fetch(BASE + path, { method: "POST", headers: HEADERS, body: JSON.stringify(body) });
-  if ((res.status === 429 || res.status >= 500) && attempt < 5) { await sleep(1200 * (attempt + 1)); return api(path, body, attempt + 1); }
+async function api(path, body, method = "POST", attempt = 0) {
+  const res = await fetch(BASE + path, { method, headers: HEADERS, body: body !== undefined ? JSON.stringify(body) : undefined });
+  if ((res.status === 429 || res.status >= 500) && attempt < 5) { await sleep(1200 * (attempt + 1)); return api(path, body, method, attempt + 1); }
   const json = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, json };
 }
@@ -93,7 +94,16 @@ for (let i = 0; i < rows.length; i++) {
       if (verbose) console.log("OPP", op.status, name, oppId || JSON.stringify(op.json).slice(0, 200));
       if (!op.ok || !oppId) { errors++; console.log(`ERR opp ${l.id} ${op.status} ${JSON.stringify(op.json).slice(0, 200)}`); }
       else { await db.execute({ sql: "UPDATE leads SET ghl_opportunity_id=? WHERE id=?", args: [oppId, l.id] }); opps++; }
-    } else skippedOpp++;
+    } else {
+      // re-run repair: reconcile the existing opp's stage/status with current lifecycle
+      const up = await api(`/opportunities/${l.ghl_opportunity_id}`, {
+        pipelineId: PIPELINE,
+        pipelineStageId: STAGE[l.lifecycle] || STAGE.new,
+        status: STATUS[l.lifecycle] || "open",
+      }, "PUT");
+      if (!up.ok) { errors++; console.log(`ERR opp-update ${l.id} ${up.status}`); }
+      skippedOpp++;
+    }
     if (i % 25 === 0) console.log(`[${i + 1}/${rows.length}] contacts=${contacts} opps=${opps} skip=${skippedOpp} err=${errors}`);
     await sleep(SLEEP_MS);
   } catch (e) { errors++; console.log(`EXC ${l.id} ${String(e).slice(0, 200)}`); }

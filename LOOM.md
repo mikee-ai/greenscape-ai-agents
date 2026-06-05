@@ -19,34 +19,39 @@ Reactivation at #2** — $784k he wasn't even counting.
 On the admin tool:
 1. **New lead arrives** (show the webhook or a lead in the list).
 2. Open it → **paste messy site-walk notes** → **Generate**.
-3. While it runs (≈20s): *"Haiku extracts the scope, my code prices it from the catalog, Sonnet writes the
-   prose. The page auto-refreshes — generation runs in `waitUntil` so the request never hangs."*
+3. While it runs (≈20s): *"A local LLM extracts the scope, my code prices it from the catalog, then it writes
+   the prose — running on Ollama on-box, so $0 in API cost. The page auto-refreshes — generation runs in
+   `waitUntil` so the request never hangs."*
 4. **Review screen**: point at a **flagged low-confidence row** — *"the AI told me it was unsure, so it's
    flagged for me."* Edit a quantity → **total recomputes server-side**.
 5. **Approve & Send** → show the **customer `/p/:token` page** (branded, premium) → the **PayPal deposit button**
-   → click **Simulate paid** → status flips to **deposit_paid**, lead becomes **won**.
+   → click **Simulate paid** → status flips to **deposit_paid**, lead becomes **won** — and the opportunity
+   moves to **Closed** in GoHighLevel in real time.
 
 ### 2:30 — 3:10 · Agent #2 (reuse story)
-Reactivation tab: *"Same engine — Claude + CRM context + approve-then-send. Pick dead leads, it writes a personal
+Reactivation tab: *"Same engine — the LLM + CRM context + approve-then-send. Pick dead leads, it writes a personal
 message grounded in their real notes, I approve the batch, it sends. 1,400 leads, $784k latent. Lost quotes from
 Agent #1 flow back into this pile."*
 
 ### 3:10 — 4:20 · Architecture decisions (why, not what)
-- **"The LLM never computes a price."** Claude picks *which* catalog items and *how much*; every dollar is a
+- **"The LLM never computes a price."** The LLM picks *which* catalog items and *how much*; every dollar is a
   pure, unit-tested function of integer cents. A hallucinated price is structurally impossible — worst case is
   a flagged line. *(Show `pricing/compute.ts` + the green test run.)*
-- **Models:** Haiku for extraction (cheap, structured, catalog prompt-cached), Sonnet for customer-facing prose.
-  **~3 cents/proposal, ~$3–4/month** at 150/mo. The thing we're saving is his 6–9 days, not tokens.
-- **Stack:** Cloudflare Workers + D1 — one platform, edge-deployed, real SQL with migrations, lives on the
-  client-style domain. Hono SSR, no JS framework needed for an 8-screen internal tool.
+- **Model:** a local LLM — Ollama `qwen3:8b` on an NVIDIA GB10 — runs both extraction and prose.
+  **$0/proposal, no API key** (Claude is a one-env-var swap via `LLM_PROVIDER`). The thing we're saving is his
+  6–9 days, not tokens.
+- **Stack:** self-hosted **Node + libSQL** behind a **Cloudflare Tunnel** — and the *same codebase* also runs on
+  Cloudflare Workers + D1. Real SQL with migrations, lives on the client-style domain. Hono SSR, no JS framework
+  needed for an 8-screen internal tool.
 - **Robustness:** forced tool-use → Zod → one retry → always-editable fallback. Every integration is isolated;
   one failing service never breaks the flow. *(Show the activity feed with an `email.failed` that still advanced to sent.)*
 
 ### 4:20 — 5:00 · What I'd build next + honest trade-offs
-> "Next: wire GoHighLevel — production routes everything through GHL; I built a clean adapter boundary but didn't
-> connect a live tenant. The first thing that breaks at scale is catalog drift — extraction is only as good as
-> the loaded catalog — so I'd add few-shot examples from Marcus's real past proposals. And I'd add real reply
-> tracking for reactivation. Everything's deployed, persistent, with real Claude + SES + PayPal integrations.
+> "GoHighLevel is wired live — production routes everything through GHL, and this build syncs leads, proposals,
+> and deposits to a real GHL account in real time, with GHL as the source of truth. Next: deeper GHL automations
+> (follow-ups, reactivation) and few-shot extraction from Marcus's real past proposals — the first thing that
+> breaks at scale is catalog drift, since extraction is only as good as the loaded catalog. Everything's deployed,
+> persistent, with real GoHighLevel + SES + PayPal integrations, running on a local LLM at $0/proposal.
 > Thanks for watching."
 
 ---

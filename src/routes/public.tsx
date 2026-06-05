@@ -97,7 +97,7 @@ pub.get("/:token/return", async (c) => {
   if (orderId) {
     try {
       const cap = await captureOrder(c.env, orderId);
-      if (cap.status === "COMPLETED") await markDepositPaid(db, p.id);
+      if (cap.status === "COMPLETED") await markDepositPaid(c.env, p.id);
       else await logEvent(db, { type: "deposit.capture_incomplete", status: "error", proposalId: p.id, detail: cap });
     } catch (err) {
       await logEvent(db, { type: "deposit.capture_failed", status: "error", proposalId: p.id, detail: { error: String(err) } });

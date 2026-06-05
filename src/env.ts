@@ -29,6 +29,12 @@ export interface Env {
   PAYPAL_CLIENT_ID: string;
   PAYPAL_CLIENT_SECRET: string;
   ADMIN_PASSWORD: string;
+
+  // ── GoHighLevel (system of record) ──
+  GHL_API_KEY?: string;
+  GHL_LOCATION_ID?: string;
+  GHL_PIPELINE_ID?: string;
+  GHL_EMAIL_SEND?: string; // "true" → send proposal email via GHL Conversations; else SES only
 }
 
 /** Hono generics helper: `new Hono<AppEnv>()`. */

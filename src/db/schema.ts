@@ -20,6 +20,7 @@ export const leads = sqliteTable(
   {
     id: text("id").primaryKey(),
     ghlContactId: text("ghl_contact_id"),
+    ghlOpportunityId: text("ghl_opportunity_id"),
     name: text("name").notNull(),
     email: text("email"),
     phone: text("phone"),
