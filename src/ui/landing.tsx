@@ -145,30 +145,32 @@ export const Landing: FC = () => (
     title="AI Agents for Greenscape Pro"
     description="An external proposal generator, synced to GoHighLevel in real time, that turns dictated site-walk notes into priced proposals on a local LLM — built for Greenscape Pro by License & Scale."
   >
-    {/* ── FILM HERO (autoplay explainer, full-bleed, first thing on the page) ── */}
-    <section class="film-hero" style="position:relative;width:100%;background:#0a0d0b;line-height:0">
-      <video
-        id="explainer"
-        autoplay
-        muted
-        loop
-        controls
-        controlslist="nodownload"
-        playsinline
-        preload="auto"
-        poster="/explainer-poster.jpg?v=2"
-        style="display:block;width:100%;height:auto;max-height:100svh;object-fit:cover;background:#0a0d0b"
-      >
-        <source src="/explainer.mp4?v=2" type="video/mp4" />
-      </video>
-      <button
-        id="explainer-unmute"
-        type="button"
-        style="position:absolute;right:20px;top:20px;z-index:3;display:inline-flex;align-items:center;gap:8px;font:700 14px/1 var(--font);letter-spacing:.01em;color:#fff;background:rgba(18,53,42,.74);border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:11px 18px;border-radius:999px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4)"
-      >
-        🔊 Tap for sound
-      </button>
-      <script>{raw("(function(){var v=document.getElementById('explainer');var b=document.getElementById('explainer-unmute');if(!v)return;function on(){v.muted=false;v.currentTime=0;var p=v.play();if(p&&p.catch)p.catch(function(){});if(b)b.style.display='none';}if(b)b.addEventListener('click',on);})();")}</script>
+    {/* ── FILM HERO (autoplay explainer, contained 3/4 width, first thing on the page) ── */}
+    <section class="film-hero" style="background:linear-gradient(160deg,#12352a,#1f5a43 70%);padding:46px 24px 36px;display:flex;justify-content:center">
+      <div style="position:relative;width:75%;max-width:1180px;min-width:320px;line-height:0">
+        <video
+          id="explainer"
+          autoplay
+          muted
+          loop
+          controls
+          controlslist="nodownload"
+          playsinline
+          preload="auto"
+          poster="/explainer-poster.jpg?v=2"
+          style="display:block;width:100%;height:auto;border-radius:16px;background:#0a0d0b;border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 70px rgba(0,0,0,.45)"
+        >
+          <source src="/explainer.mp4?v=2" type="video/mp4" />
+        </video>
+        <button
+          id="explainer-unmute"
+          type="button"
+          style="position:absolute;right:16px;top:16px;z-index:3;display:inline-flex;align-items:center;gap:8px;font:700 13px/1 var(--font);letter-spacing:.01em;color:#fff;background:rgba(18,53,42,.74);border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:10px 16px;border-radius:999px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4)"
+        >
+          🔊 Tap for sound
+        </button>
+        <script>{raw("(function(){var v=document.getElementById('explainer'),b=document.getElementById('explainer-unmute');if(!v)return;function hide(){if(b)b.style.display='none';}function sound(){v.muted=false;var p=v.play();if(p&&p.catch)p.catch(function(){v.muted=true;v.play();});setTimeout(function(){if(!v.muted)hide();},150);}v.addEventListener('canplay',sound,{once:true});if(v.readyState>=2)sound();var g=function(){sound();['click','touchstart','keydown'].forEach(function(e){document.removeEventListener(e,g);});window.removeEventListener('scroll',g);};['click','touchstart','keydown'].forEach(function(e){document.addEventListener(e,g,{passive:true});});window.addEventListener('scroll',g,{passive:true});if(b)b.addEventListener('click',sound);})();")}</script>
+      </div>
     </section>
 
     {/* ── HERO (2-column) ── */}
