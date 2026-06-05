@@ -33,8 +33,8 @@ removes the founder as the single point of failure, which is the precondition fo
 **Why #2:** It's revenue the founder isn't even counting, the lowest-risk build, and it reuses Agent #1's
 engine (Claude + CRM context + approve-then-send) — so it ships at ~40% marginal effort.
 
-### 3. Post-Sign Concierge Agent
-**Purpose:** Automate the stalled post-signing stages (HOA, permits, deposits) that delay revenue and crew scheduling.
+### 3. Post-Sign Follow-Up Agent
+**Purpose:** Automate the stalled post-signing stages — HOA, permits, deposits, and customer nudges — that delay revenue and crew scheduling.
 
 - Stage-based automated follow-ups for HOA submission, permit revisions, and deposit collection.
 - Nudges the customer; flags genuine stalls for Jenna; tracks each project's "limbo" time.
@@ -44,8 +44,8 @@ engine (Claude + CRM context + approve-then-send) — so it ships at ~40% margin
 faster cash and tighter crew utilization (which compounds). Frees several of Jenna's hours/week.
 **Why #3:** Operationally significant, but it accelerates *timing* of revenue rather than *creating* it — below the two revenue-creating agents.
 
-### 4. Build-Progress Update Agent
-**Purpose:** Keep customers informed automatically during the build, in Marcus's voice.
+### 4. Project Update Agent
+**Purpose:** Automated customer communication from CompanyCam/Jobber milestones, in Marcus's voice.
 
 - Triggers on CompanyCam photo uploads / Jobber milestones; sends branded progress updates.
 - Prompts the halfway "personal video" moment Marcus already knows drives referrals.

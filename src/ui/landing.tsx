@@ -21,16 +21,16 @@ const STRATEGY = [
   },
   {
     n: 3,
-    name: "Post-Sign Concierge",
+    name: "Post-Sign Follow-Up",
     built: false,
-    one: "Automates the HOA / permit / deposit chasing that stalls revenue and crew scheduling.",
+    one: "Automates HOA, permits, deposits, and customer nudges that stall revenue and crew scheduling.",
     roi: "$224k–$336k of delayed revenue accelerated.",
   },
   {
     n: 4,
-    name: "Build-Progress Updates",
+    name: "Project Update",
     built: false,
-    one: "Auto, Marcus-voiced updates on CompanyCam/Jobber milestones — kills anxiety calls, drives referrals.",
+    one: "Automated customer communication from CompanyCam/Jobber milestones — kills anxiety calls, drives referrals.",
     roi: "Referral lift + fewer inbound calls to Jenna.",
   },
   {
