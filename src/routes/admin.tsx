@@ -1,12 +1,13 @@
 import { Hono } from "hono";
-import { count, eq } from "drizzle-orm";
 import type { AppEnv } from "../env.ts";
 import { getDb } from "../db/client.ts";
-import { leads } from "../db/schema.ts";
 import { Layout, doc } from "../ui/layout.tsx";
 import { PageHead, EmptyState, Section, LifecycleBadge } from "../ui/components.tsx";
 import { createLead, getLead, listLeads } from "../services/leads.ts";
-import { logEvent } from "../services/events.ts";
+import { logEvent, recentEvents } from "../services/events.ts";
+import { dashboardMetrics } from "../services/dashboard.ts";
+import { reactivationStats } from "../services/reactivation.ts";
+import { Dashboard } from "../ui/dashboard.tsx";
 import { formatCents } from "../lib/money.ts";
 import { timeAgo, formatDate } from "../lib/time.ts";
 import { dollarsToCents } from "../lib/money.ts";
@@ -28,47 +29,20 @@ const PROJECT_TYPES = [
 ];
 const prettyType = (t: string | null) => (t ? t.replace(/_/g, " ") : "—");
 
-// ── overview ──────────────────────────────────────────────────────────
+// ── dashboard ─────────────────────────────────────────────────────────
 admin.get("/", async (c) => {
   const db = getDb(c.env.DB);
-  const [activeRow] = await db.select({ n: count() }).from(leads).where(eq(leads.lifecycle, "new"));
-  const [lostRow] = await db.select({ n: count() }).from(leads).where(eq(leads.lifecycle, "closed_lost"));
-  const recent = await listLeads(db, { lifecycle: "new", limit: 6 });
-
+  const [m, react, events] = await Promise.all([
+    dashboardMetrics(db),
+    reactivationStats(db),
+    recentEvents(db, 14),
+  ]);
   return c.html(
     doc(
       <Layout nav="admin" active="dashboard" title="Dashboard">
         <Section>
           <PageHead title="Dashboard" subtitle="Greenscape Pro · operations overview" />
-          <div class="grid grid-3">
-            <div class="stat">
-              <div class="label">Active leads</div>
-              <div class="value">{activeRow.n}</div>
-              <div class="delta muted">awaiting a quote</div>
-            </div>
-            <div class="stat">
-              <div class="label">Closed-lost pile</div>
-              <div class="value">{lostRow.n.toLocaleString()}</div>
-              <div class="delta muted">reactivation candidates</div>
-            </div>
-            <div class="stat">
-              <div class="label">Quote cycle target</div>
-              <div class="value">&lt; 1 day</div>
-              <div class="delta down">was 6–9 days</div>
-            </div>
-          </div>
-
-          <div class="card" style="margin-top:24px">
-            <div class="card-header">
-              <h2>Recent active leads</h2>
-              <a class="btn btn-ghost btn-sm" href="/admin/leads">View all →</a>
-            </div>
-            {recent.length === 0 ? (
-              <EmptyState title="No active leads yet" hint="Leads arrive via the Meta/GHL webhook or you can add one manually." cta={<a class="btn btn-primary btn-sm" href="/admin/leads/new">Add a lead</a>} />
-            ) : (
-              <LeadTable rows={recent} />
-            )}
-          </div>
+          <Dashboard m={m} react={react} events={events} />
         </Section>
       </Layout>,
     ),
