@@ -1,4 +1,5 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
+import { LsLogo } from "./components.tsx";
 
 type NavVariant = "admin" | "public" | "landing";
 
@@ -85,8 +86,8 @@ export const Layout: FC<
       <footer class="site">
         <div class="container row between wrap">
           <span>© Greenscape Pro · Phoenix, AZ</span>
-          <span class="muted">
-            AI agents by <strong>License &amp; Scale</strong> · Speed-to-Quote &amp; Reactivation
+          <span class="muted row" style="gap:8px">
+            AI agents by <LsLogo size="0.82rem" /> · Speed-to-Quote &amp; Reactivation
           </span>
         </div>
       </footer>

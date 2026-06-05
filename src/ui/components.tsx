@@ -1,5 +1,22 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
 
+/** License & Scale logo lockup — gradient wordmark + hexagon/up-arrow mark. */
+export const LsLogo: FC<{ size?: string; onDark?: boolean }> = ({ size = "1rem", onDark }) => (
+  <span class={`ls-logo${onDark ? " on-dark" : ""}`} style={`font-size:${size}`} aria-label="License & Scale">
+    <span class="ls-word">LICENSE &amp; SCALE</span>
+    <svg class="ls-mark" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="lsmark" x1="0" y1="0" x2="40" y2="48" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#a9c0ff" />
+          <stop offset="1" stop-color="#cbb9ff" />
+        </linearGradient>
+      </defs>
+      <path d="M20 2 L38 13 V35 L20 46 L2 35 V13 Z" stroke="url(#lsmark)" stroke-width="2" stroke-linejoin="round" />
+      <path d="M13 23 L20 14 L27 23 M20 15 V37 M15 37 H25" stroke="url(#lsmark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </span>
+);
+
 export const PageHead: FC<{ title: string; subtitle?: string; actions?: unknown }> = ({
   title,
   subtitle,

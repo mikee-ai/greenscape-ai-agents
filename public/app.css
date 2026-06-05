@@ -226,3 +226,26 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 .skeleton { background: linear-gradient(90deg, var(--sand-100), var(--sand-200), var(--sand-100)); background-size: 200% 100%; animation: shimmer 1.3s infinite; border-radius: 6px; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 footer.site { padding: 32px 0; color: var(--ink-400); font-size: .85rem; border-top: 1px solid var(--sand-200); margin-top: 40px; }
+
+/* ── License & Scale logo lockup (inline SVG + gradient text) ── */
+.ls-logo { display: inline-flex; align-items: center; gap: .45em; font-weight: 300; letter-spacing: .14em; line-height: 1; white-space: nowrap; }
+.ls-logo .ls-word { background: linear-gradient(90deg, #8e7cf0, #b6a8ff 55%, #cbb9ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ls-logo .ls-mark { width: 1.05em; height: 1.2em; flex: none; }
+.ls-logo.on-dark .ls-word { background: linear-gradient(90deg, #c3b6ff, #d8ccff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ── submission showcase ── */
+.rank-list { margin: 0; }
+.rank { display: flex; gap: 14px; align-items: flex-start; padding: 15px 0; border-bottom: 1px solid var(--sand-100); }
+.rank:last-child { border-bottom: none; }
+.rank .n { width: 30px; height: 30px; border-radius: 8px; background: var(--green-100); color: var(--green-700); display: grid; place-items: center; font-weight: 800; flex: none; }
+.rank.built .n { background: var(--green-700); color: #fff; }
+.rank .body { flex: 1; }
+.rank .body h3 { margin: 0 0 2px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.deliverable { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 1px solid var(--sand-200); border-radius: var(--radius); background: #fff; text-decoration: none; color: inherit; transition: .14s; box-shadow: var(--shadow-sm); }
+.deliverable:hover { box-shadow: var(--shadow); transform: translateY(-1px); text-decoration: none; border-color: var(--green-100); }
+.deliverable .ico { font-size: 1.5rem; line-height: 1; }
+.deliverable h3 { margin: 0 0 2px; }
+.deliverable .url { font-family: var(--mono); font-size: .76rem; color: var(--green-700); word-break: break-all; }
+.checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.checklist li { display: flex; gap: 10px; align-items: flex-start; }
+.checklist .ck { color: var(--ok-fg); font-weight: 800; flex: none; }
