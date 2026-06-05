@@ -81,6 +81,28 @@ proposals.post("/", async (c) => {
   return c.redirect(`/admin/proposals/${id}`);
 });
 
+// ── voice-to-text for site-walk notes (self-hosted Whisper) ───────────
+proposals.post("/transcribe", async (c) => {
+  const whisper = c.env.WHISPER_URL;
+  if (!whisper) return c.json({ error: "voice-to-text not configured" }, 503);
+  const body = await c.req.parseBody();
+  const file = body["audio"];
+  if (!(file instanceof File)) return c.json({ error: "no audio uploaded" }, 400);
+  try {
+    const fd = new FormData();
+    fd.append("audio_file", file, "note.webm");
+    const r = await fetch(`${whisper.replace(/\/$/, "")}/asr?output=txt&language=en&task=transcribe`, {
+      method: "POST",
+      body: fd,
+    });
+    if (!r.ok) return c.json({ error: `transcription service ${r.status}` }, 502);
+    const text = (await r.text()).trim();
+    return c.json({ text });
+  } catch {
+    return c.json({ error: "transcription failed" }, 502);
+  }
+});
+
 // ── detail (state-based) ──────────────────────────────────────────────
 proposals.get("/:id", async (c) => {
   const db = getDb(c.env.DB);
@@ -105,7 +127,7 @@ proposals.get("/:id", async (c) => {
             actions={<StatusBadge value={proposal.status} />}
           />
           {proposal.status === "draft" ? (
-            <DraftNotesForm proposal={proposal} lead={lead} />
+            <DraftNotesForm proposal={proposal} lead={lead} voiceEnabled={!!c.env.WHISPER_URL} />
           ) : generating ? (
             <GeneratingView />
           ) : (

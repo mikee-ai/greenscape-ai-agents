@@ -249,3 +249,9 @@ footer.site { padding: 32px 0; color: var(--ink-400); font-size: .85rem; border-
 .checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .checklist li { display: flex; gap: 10px; align-items: flex-start; }
 .checklist .ck { color: var(--ok-fg); font-weight: 800; flex: none; }
+
+/* ── dictation (self-hosted voice-to-text) ── */
+.dictate-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.dictate-hint { font-size: .82rem; color: var(--ink-500); }
+.btn.rec { background: var(--danger-bg); color: var(--danger-fg); animation: recpulse 1.1s ease-in-out infinite; }
+@keyframes recpulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }

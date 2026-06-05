@@ -40,6 +40,7 @@ const env: Env = {
   LLM_PROVIDER: process.env.LLM_PROVIDER as Env["LLM_PROVIDER"],
   OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
   LOCAL_LLM_MODEL: process.env.LOCAL_LLM_MODEL,
+  WHISPER_URL: process.env.WHISPER_URL,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "",
   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? "",
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ?? "",
@@ -55,14 +56,20 @@ const ctx = {
   passThroughOnException() {},
 };
 
-let css = "";
-try {
-  css = readFileSync(fileURLToPath(new URL("../public/app.css", import.meta.url).href), "utf8");
-} catch {
-  try {
-    css = readFileSync("public/app.css", "utf8");
-  } catch {}
+// Static files served by the Node host (Workers serves /public automatically).
+const STATIC: Record<string, { body: string; type: string }> = {};
+function loadStatic(rel: string, type: string) {
+  for (const p of [fileURLToPath(new URL("../public/" + rel, import.meta.url).href), "public/" + rel]) {
+    try {
+      STATIC["/" + rel] = { body: readFileSync(p, "utf8"), type };
+      return;
+    } catch {
+      /* try next path */
+    }
+  }
 }
+loadStatic("app.css", "text/css; charset=utf-8");
+loadStatic("dictate.js", "text/javascript; charset=utf-8");
 
 const port = Number(process.env.PORT ?? 8080);
 const hostname = process.env.HOST ?? "127.0.0.1";
@@ -73,13 +80,8 @@ serve(
     hostname,
     fetch: (req: Request) => {
       const u = new URL(req.url);
-      if (u.pathname === "/app.css")
-        return new Response(css, {
-          headers: {
-            "content-type": "text/css; charset=utf-8",
-            "cache-control": "no-cache",
-          },
-        });
+      const st = STATIC[u.pathname];
+      if (st) return new Response(st.body, { headers: { "content-type": st.type, "cache-control": "no-cache" } });
       return app.fetch(req, env as any, ctx as any);
     },
   },

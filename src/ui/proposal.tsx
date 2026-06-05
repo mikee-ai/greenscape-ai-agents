@@ -19,13 +19,24 @@ const ConfidenceBadge: FC<{ value: number | null }> = ({ value }) => {
 };
 
 // ── draft state: enter site-walk notes ────────────────────────────────
-export const DraftNotesForm: FC<{ proposal: Proposal; lead: Lead | null }> = ({ proposal, lead }) => (
+export const DraftNotesForm: FC<{ proposal: Proposal; lead: Lead | null; voiceEnabled?: boolean }> = ({
+  proposal,
+  lead,
+  voiceEnabled,
+}) => (
   <div class="grid grid-2" style="align-items:start">
     <form method="post" action={`/admin/proposals/${proposal.id}/generate`} class="card stack">
       <div>
         <label>Site-walk notes</label>
         <p class="hint">Dictate or paste your raw notes. The AI turns them into a priced proposal in ~30s.</p>
+        {voiceEnabled ? (
+          <div class="dictate-bar">
+            <button type="button" id="dictate-btn" class="btn btn-ghost btn-sm">🎤 Dictate</button>
+            <span id="dictate-status" class="dictate-hint" />
+          </div>
+        ) : null}
         <textarea
+          id="notes-textarea"
           name="notes"
           rows={14}
           required
@@ -34,7 +45,9 @@ export const DraftNotesForm: FC<{ proposal: Proposal; lead: Lead | null }> = ({ 
       </div>
       <div class="row">
         <button type="submit" class="btn btn-primary">⚡ Generate proposal</button>
-        <span class="hint">Haiku extracts scope → code prices it → Sonnet writes the prose.</span>
+        <span class="hint">
+          {voiceEnabled ? "Speech-to-text + the proposal AI both run self-hosted — $0 per quote." : "AI extracts scope → code prices it → AI writes the prose."}
+        </span>
       </div>
     </form>
     <div class="card">
@@ -43,6 +56,7 @@ export const DraftNotesForm: FC<{ proposal: Proposal; lead: Lead | null }> = ({ 
       {lead?.budgetHint ? <p class="muted">Budget hint: <strong>{formatCents(lead.budgetHint)}</strong></p> : null}
       <p class="muted">Project: {prettyType(lead?.projectType ?? null)}</p>
     </div>
+    {voiceEnabled ? <script src="/dictate.js" defer /> : null}
   </div>
 );
 
