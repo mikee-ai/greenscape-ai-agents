@@ -3,6 +3,8 @@ import { logger } from "hono/logger";
 import type { AppEnv } from "./env.ts";
 import { Layout, doc } from "./ui/layout.tsx";
 import { Landing } from "./ui/landing.tsx";
+import webhookRoutes from "./routes/webhook.ts";
+import adminRoutes from "./routes/admin.tsx";
 
 const app = new Hono<AppEnv>();
 
@@ -16,10 +18,14 @@ app.get("/health", (c) =>
 // Public landing page (front door of licenseandscale.mikee.ai).
 app.get("/", (c) => c.html(doc(<Landing />)));
 
-// Route modules are mounted here as they are built:
-//   app.route("/webhook", webhookRoutes);   // lead intake
-//   app.route("/admin", adminRoutes);        // internal tool (auth-gated)
-//   app.route("/p", publicRoutes);           // customer-facing proposal pages
+// Lead intake (GHL/Meta webhook simulation).
+app.route("/webhook", webhookRoutes);
+
+// Internal admin tool (auth-gated inside the sub-app).
+app.route("/admin", adminRoutes);
+
+// Customer-facing proposal pages mount here in a later milestone:
+//   app.route("/p", publicRoutes);
 
 // ── error + 404 handling (never leak a raw stack to the client) ──
 app.notFound((c) =>
