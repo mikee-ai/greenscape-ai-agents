@@ -4,7 +4,7 @@ import type { FC, PropsWithChildren } from "hono/jsx";
 export const LsLogo: FC<{ size?: string; onDark?: boolean }> = ({ size = "1rem", onDark }) => (
   <span class={`ls-logo${onDark ? " on-dark" : ""}`} style={`font-size:${size}`} aria-label="License & Scale">
     <span class="ls-word">LICENSE &amp; SCALE</span>
-    <svg class="ls-mark" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg class="ls-mark" width="1.05em" height="1.2em" style="width:1.05em;height:1.2em;flex:none" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="lsmark" x1="0" y1="0" x2="40" y2="48" gradientUnits="userSpaceOnUse">
           <stop stop-color="#a9c0ff" />

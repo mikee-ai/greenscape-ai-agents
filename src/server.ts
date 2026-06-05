@@ -3,9 +3,16 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { webcrypto } from "node:crypto";
 import app from "./index.tsx";
 import * as schema from "./db/schema.ts";
 import type { Env } from "./env.ts";
+
+// Node < 19 has no global Web Crypto; the app (ids.ts) relies on crypto.randomUUID
+// / getRandomValues (ambient on Workers + Node 19+). Polyfill it for the Node host.
+if (!(globalThis as { crypto?: Crypto }).crypto) {
+  (globalThis as { crypto?: Crypto }).crypto = webcrypto as unknown as Crypto;
+}
 
 // Minimal .env loader (no dependency) so the host can add secrets by editing
 // .env + restarting — no rebuild. Real process env always wins.
@@ -67,7 +74,7 @@ serve(
         return new Response(css, {
           headers: {
             "content-type": "text/css; charset=utf-8",
-            "cache-control": "public, max-age=3600",
+            "cache-control": "no-cache",
           },
         });
       return app.fetch(req, env as any, ctx as any);

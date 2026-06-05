@@ -74,7 +74,7 @@ export const Layout: FC<
       {description ? <meta name="description" content={description} /> : null}
       <meta property="og:title" content={title ?? "Greenscape Pro"} />
       <meta property="og:type" content="website" />
-      <link rel="stylesheet" href="/app.css" />
+      <link rel="stylesheet" href="/app.css?v=2" />
       <link
         rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231f5a43'/%3E%3Ctext x='50' y='70' font-size='62' text-anchor='middle' fill='%23c7972f'%3E%E2%96%B2%3C/text%3E%3C/svg%3E"
