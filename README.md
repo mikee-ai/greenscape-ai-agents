@@ -107,6 +107,7 @@ a human. Good-enough extraction → trustworthy output.
 - **Runs two ways from one codebase:** self-hosted **Node + libSQL** (current production) *or* **Cloudflare Workers + D1** (edge). `getDb` transparently accepts a D1 binding or an injected Drizzle instance; [`src/server.ts`](./src/server.ts) is the Node entry.
 - **Hosting:** a self-hosted Node service behind a **Cloudflare Tunnel** → greenscape.licensescale.com.
 - **LLM (pluggable):** **local Ollama `qwen3:8b` on an NVIDIA GB10 — $0/proposal, no API key** *(default)*, or **Claude** (Haiku extraction + Sonnet prose). One env var, `LLM_PROVIDER`, flips between them; both are asked for JSON matching the same schemas.
+- **Voice-to-text (Dictate):** **self-hosted Whisper** (faster-whisper `small.en` in Docker, ffmpeg-decoded) — speak your site-walk notes in the browser and they're transcribed on-box (~2–3s). No cloud STT, no API key. The whole *speak → priced proposal* pipeline runs on the one GB10 at **$0/quote**. Gated on `WHISPER_URL`.
 - **DB:** **libSQL/SQLite** (or D1) via **Drizzle ORM** + SQL migrations — real persistence, money as integer cents.
 - **Integrations:** **Amazon SES** (email, SigV4 via `aws4fetch`) + **PayPal Orders v2** (deposit checkout).
 - **UI:** **Hono** server-rendered pages + a hand-written CSS design system (no framework).
