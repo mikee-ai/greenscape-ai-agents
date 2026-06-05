@@ -26,7 +26,7 @@ const db = drizzle(client, { schema });
 
 const env: Env = {
   DB: db,
-  PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL ?? "https://greenscape.mikee.ai",
+  PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL ?? "https://greenscape.licensescale.com",
   PAYPAL_ENV: (process.env.PAYPAL_ENV ?? "sandbox") as Env["PAYPAL_ENV"],
   SES_FROM: process.env.SES_FROM ?? "proposals@mikee.ai",
   AWS_REGION: process.env.AWS_REGION ?? "us-east-1",

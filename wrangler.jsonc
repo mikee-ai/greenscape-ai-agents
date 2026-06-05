@@ -9,7 +9,7 @@
 
   // Bind the public production hostname. Requires mikee.ai to be an active zone
   // on this Cloudflare account, with no pre-existing CNAME on the subdomain.
-  "routes": [{ "pattern": "greenscape.mikee.ai", "custom_domain": true }],
+  "routes": [{ "pattern": "greenscape.licensescale.com", "custom_domain": true }],
 
   // Persistent storage — real SQL database (NOT localStorage/JSON).
   "d1_databases": [
@@ -25,7 +25,7 @@
   "assets": { "directory": "./public", "binding": "ASSETS" },
 
   "vars": {
-    "PUBLIC_BASE_URL": "https://greenscape.mikee.ai",
+    "PUBLIC_BASE_URL": "https://greenscape.licensescale.com",
     "PAYPAL_ENV": "sandbox",
     "SES_FROM": "proposals@mikee.ai",
     "AWS_REGION": "us-east-1"

@@ -3,9 +3,9 @@
 Two production AI agents for **Greenscape Pro**, a Phoenix high-end hardscape/landscape design-build company,
 built for the **License & Scale** AI Developer take-home.
 
-**Live:** https://greenscape.mikee.ai · **Strategy:** [`STRATEGY.md`](./STRATEGY.md) · **Walkthrough:** [`LOOM.md`](./LOOM.md)
+**Live:** https://greenscape.licensescale.com · **Strategy:** [`STRATEGY.md`](./STRATEGY.md) · **Walkthrough:** [`LOOM.md`](./LOOM.md)
 
-> Runs two ways from one codebase: **Cloudflare Workers + D1** (edge) or a **plain Node server + libSQL** (self-hosted). Production is currently self-hosted on a Node host behind a **Cloudflare Tunnel** (greenscape.mikee.ai). `getDb` transparently accepts a D1 binding or an injected Drizzle instance; `src/server.ts` is the Node entry.
+> Runs two ways from one codebase: **Cloudflare Workers + D1** (edge) or a **plain Node server + libSQL** (self-hosted). Production is currently self-hosted on a Node host behind a **Cloudflare Tunnel** (greenscape.licensescale.com). `getDb` transparently accepts a D1 binding or an injected Drizzle instance; `src/server.ts` is the Node entry.
 
 | Agent | Problem it kills | Status |
 |---|---|---|
@@ -92,7 +92,7 @@ DATABASE_URL=file:./data/greenscape.db npm run db:setup:node   # migrate + seed 
 pm2 start dist/server.mjs --name greenscape --cwd "$PWD"   # or: node dist/server.mjs
 # expose it (named tunnel, dedicated config so it doesn't collide with other tunnels):
 cloudflared tunnel create greenscape
-cloudflared tunnel route dns greenscape greenscape.mikee.ai
+cloudflared tunnel route dns greenscape greenscape.licensescale.com
 cloudflared tunnel --config ~/.cloudflared/config-greenscape.yml run greenscape   # ingress → http://localhost:8787
 ```
 Secrets live in `.env` (loaded at startup); add the Anthropic/AWS/PayPal keys there and `pm2 restart greenscape` — no rebuild.
