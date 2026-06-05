@@ -55,12 +55,20 @@ const Nav: FC<{ variant: NavVariant; active?: string }> = ({ variant, active }) 
 };
 
 export const Layout: FC<
-  PropsWithChildren<{ title?: string; nav?: NavVariant; active?: string; description?: string }>
-> = ({ title, nav = "admin", active, description, children }) => (
+  PropsWithChildren<{
+    title?: string;
+    nav?: NavVariant;
+    active?: string;
+    description?: string;
+    /** auto-refresh the page every N seconds (used while an AI job runs) */
+    refreshSeconds?: number;
+  }>
+> = ({ title, nav = "admin", active, description, refreshSeconds, children }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
+      {refreshSeconds ? <meta http-equiv="refresh" content={String(refreshSeconds)} /> : null}
       <title>{title ? `${title} · Greenscape Pro` : "Greenscape Pro"}</title>
       {description ? <meta name="description" content={description} /> : null}
       <meta property="og:title" content={title ?? "Greenscape Pro"} />

@@ -11,9 +11,13 @@ import { formatCents } from "../lib/money.ts";
 import { timeAgo, formatDate } from "../lib/time.ts";
 import { dollarsToCents } from "../lib/money.ts";
 import { adminAuth } from "../lib/auth.ts";
+import proposalsRouter from "./proposals.tsx";
 
 const admin = new Hono<AppEnv>();
 admin.use("*", adminAuth);
+
+// Speed-to-Quote proposal routes (list, create, generate, review, edit).
+admin.route("/proposals", proposalsRouter);
 
 const PROJECT_TYPES = [
   "paver_patio", "pool_deck", "outdoor_kitchen", "full_yard", "fire_feature",
@@ -192,31 +196,21 @@ admin.get("/leads/:id", async (c) => {
               <p class="muted" style="white-space:pre-wrap">{lead.notes || "—"}</p>
             </div>
           </div>
-          <div class="card" style="margin-top:16px">
-            <p class="muted" style="margin:0">
-              The Speed-to-Quote flow (paste site-walk notes → AI-drafted proposal) attaches here next.
-            </p>
-          </div>
+          <form method="post" action="/admin/proposals" class="card row between" style="margin-top:16px">
+            <input type="hidden" name="leadId" value={lead.id} />
+            <div>
+              <h3 style="margin:0">Speed-to-Quote</h3>
+              <p class="muted" style="margin:2px 0 0">Start a quote: paste site-walk notes → AI drafts a priced proposal.</p>
+            </div>
+            <button type="submit" class="btn btn-primary">Start quote →</button>
+          </form>
         </main>
       </Layout>,
     ),
   );
 });
 
-// ── stubs for tabs built in later milestones (so nav never 404s) ───────
-admin.get("/proposals", (c) =>
-  c.html(
-    doc(
-      <Layout nav="admin" active="proposals" title="Proposals">
-        <Section>
-          <PageHead title="Proposals" />
-          <EmptyState title="The Speed-to-Quote agent lands here" hint="Lead → site-walk notes → AI proposal → approve → send." />
-        </Section>
-      </Layout>,
-    ),
-  ),
-);
-
+// ── reactivation tab stub (built in a later milestone) ────────────────
 admin.get("/reactivation", (c) =>
   c.html(
     doc(

@@ -1,0 +1,236 @@
+import { Hono } from "hono";
+import { eq } from "drizzle-orm";
+import type { AppEnv } from "../env.ts";
+import { getDb } from "../db/client.ts";
+import { proposalLineItems, proposals as proposalsTable } from "../db/schema.ts";
+import { Layout, doc } from "../ui/layout.tsx";
+import { PageHead, StatusBadge, Section, EmptyState } from "../ui/components.tsx";
+import { DraftNotesForm, GeneratingView, ReviewView } from "../ui/proposal.tsx";
+import {
+  createProposal,
+  getProposal,
+  getProposalWithItems,
+  listProposals,
+  recomputeAndSave,
+  runProposalGeneration,
+  saveSiteWalkNotes,
+  setStatus,
+} from "../services/proposals.ts";
+import { getActiveCatalog, findCatalogBySku } from "../services/catalog.ts";
+import { logEvent } from "../services/events.ts";
+import { computeLineTotalCents } from "../pricing/compute.ts";
+import { newId } from "../lib/ids.ts";
+import { dollarsToCents, formatCents } from "../lib/money.ts";
+import { timeAgo } from "../lib/time.ts";
+
+const proposals = new Hono<AppEnv>();
+
+const EDITABLE = new Set(["needs_review", "error"]);
+const num = (v: unknown, fallback = 0) => {
+  const n = Number(String(v ?? "").trim());
+  return Number.isFinite(n) ? n : fallback;
+};
+
+// ── list ──────────────────────────────────────────────────────────────
+proposals.get("/", async (c) => {
+  const db = getDb(c.env.DB);
+  const rows = await listProposals(db, 100);
+  return c.html(
+    doc(
+      <Layout nav="admin" active="proposals" title="Proposals">
+        <Section>
+          <PageHead title="Proposals" subtitle="Speed-to-Quote pipeline" />
+          <div class="card" style="padding:0;overflow:hidden">
+            {rows.length === 0 ? (
+              <EmptyState title="No proposals yet" hint="Open a lead and start a quote." cta={<a class="btn btn-primary btn-sm" href="/admin/leads">Go to leads</a>} />
+            ) : (
+              <table class="table">
+                <thead><tr><th>Client</th><th>Status</th><th class="num">Total</th><th class="hide-sm">Confidence</th><th class="hide-sm">Updated</th><th></th></tr></thead>
+                <tbody>
+                  {rows.map(({ p, lead }) => (
+                    <tr>
+                      <td><strong>{lead?.name ?? "—"}</strong></td>
+                      <td><StatusBadge value={p.status} /></td>
+                      <td class="num">{p.totalCents ? formatCents(p.totalCents) : "—"}</td>
+                      <td class="hide-sm">{p.overallConfidence != null ? `${Math.round(p.overallConfidence * 100)}%` : "—"}</td>
+                      <td class="hide-sm muted">{timeAgo(p.updatedAt)}</td>
+                      <td class="num"><a class="btn btn-ghost btn-sm" href={`/admin/proposals/${p.id}`}>Open</a></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Section>
+      </Layout>,
+    ),
+  );
+});
+
+// ── create from a lead ────────────────────────────────────────────────
+proposals.post("/", async (c) => {
+  const db = getDb(c.env.DB);
+  const form = await c.req.parseBody();
+  const leadId = String(form.leadId ?? "").trim();
+  if (!leadId) return c.redirect("/admin/leads");
+  const id = await createProposal(db, leadId);
+  await logEvent(db, { type: "proposal.created", proposalId: id, leadId });
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── detail (state-based) ──────────────────────────────────────────────
+proposals.get("/:id", async (c) => {
+  const db = getDb(c.env.DB);
+  const data = await getProposalWithItems(db, c.req.param("id"));
+  if (!data) return c.notFound();
+  const { proposal, lead, items } = data;
+  const generating = proposal.status === "extracting" || proposal.status === "drafting";
+  const catalog = EDITABLE.has(proposal.status) ? await getActiveCatalog(db) : [];
+
+  return c.html(
+    doc(
+      <Layout
+        nav="admin"
+        active="proposals"
+        title={`Proposal · ${lead?.name ?? ""}`}
+        refreshSeconds={generating ? 3 : undefined}
+      >
+        <Section>
+          <PageHead
+            title={lead?.name ?? "Proposal"}
+            subtitle={proposal.totalCents ? formatCents(proposal.totalCents) : "Speed-to-Quote"}
+            actions={<StatusBadge value={proposal.status} />}
+          />
+          {proposal.status === "draft" ? (
+            <DraftNotesForm proposal={proposal} lead={lead} />
+          ) : generating ? (
+            <GeneratingView />
+          ) : (
+            <ReviewView proposal={proposal} lead={lead} items={items} catalog={catalog} locked={!EDITABLE.has(proposal.status)} />
+          )}
+        </Section>
+      </Layout>,
+    ),
+  );
+});
+
+// ── status (JSON, for programmatic polling) ───────────────────────────
+proposals.get("/:id/status", async (c) => {
+  const db = getDb(c.env.DB);
+  const p = await getProposal(db, c.req.param("id"));
+  if (!p) return c.json({ error: "not found" }, 404);
+  return c.json({ status: p.status, needsReviewReason: p.needsReviewReason, totalCents: p.totalCents });
+});
+
+// ── generate (first run) ──────────────────────────────────────────────
+proposals.post("/:id/generate", async (c) => {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  const form = await c.req.parseBody();
+  const notes = String(form.notes ?? "").trim();
+  if (notes) await saveSiteWalkNotes(db, id, notes);
+  await setStatus(db, id, "extracting");
+  c.executionCtx.waitUntil(runProposalGeneration(c.env, id));
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── regenerate (re-run AI on stored notes) ────────────────────────────
+proposals.post("/:id/regenerate", async (c) => {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  await setStatus(db, id, "extracting");
+  c.executionCtx.waitUntil(runProposalGeneration(c.env, id));
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── save edits (line items + prose) ───────────────────────────────────
+proposals.post("/:id/save", async (c) => {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  const data = await getProposalWithItems(db, id);
+  if (!data || !EDITABLE.has(data.proposal.status)) return c.redirect(`/admin/proposals/${id}`);
+  const form = await c.req.parseBody();
+
+  for (const it of data.items) {
+    const qty = num(form[`qty_${it.id}`], it.quantity);
+    const priceCents = dollarsToCents(num(form[`price_${it.id}`], it.unitPriceCents / 100));
+    const margin = num(form[`margin_${it.id}`], it.marginPct * 100) / 100;
+    const name = String(form[`name_${it.id}`] ?? it.name).trim() || it.name;
+    const unit = String(form[`unit_${it.id}`] ?? it.unit).trim() || it.unit;
+    const taxable = form[`tax_${it.id}`] !== undefined;
+    const lineTotal = computeLineTotalCents(qty, priceCents, margin);
+    const valid = qty > 0 && priceCents > 0;
+    await db
+      .update(proposalLineItems)
+      .set({
+        name,
+        unit,
+        quantity: qty,
+        unitPriceCents: priceCents,
+        marginPct: margin,
+        lineTotalCents: lineTotal,
+        taxable,
+        isFlagged: !valid,
+        flagReason: valid ? null : !priceCents ? "unmapped" : "missing_quantity",
+      })
+      .where(eq(proposalLineItems.id, it.id));
+  }
+
+  // prose
+  const proseKeys = ["cover_note_md", "scope_summary_md", "inclusions_md", "exclusions_md"] as const;
+  const proseCols = { cover_note_md: "coverNoteMd", scope_summary_md: "scopeSummaryMd", inclusions_md: "inclusionsMd", exclusions_md: "exclusionsMd" } as const;
+  const proseUpdate: Record<string, string> = {};
+  for (const k of proseKeys) if (form[k] !== undefined) proseUpdate[proseCols[k]] = String(form[k]);
+  if (Object.keys(proseUpdate).length) {
+    await db.update(proposalsTable).set(proseUpdate).where(eq(proposalsTable.id, id));
+  }
+
+  await recomputeAndSave(db, id);
+  await logEvent(db, { type: "proposal.edited", proposalId: id });
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── add a manual line item ────────────────────────────────────────────
+proposals.post("/:id/line-items", async (c) => {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  const form = await c.req.parseBody();
+  const sku = String(form.sku ?? "").trim();
+  const quantity = num(form.quantity, 1);
+  const cat = sku ? await findCatalogBySku(db, sku) : null;
+  if (cat) {
+    const lineTotal = computeLineTotalCents(quantity, cat.unitPriceCents, cat.defaultMarginPct);
+    await db.insert(proposalLineItems).values({
+      id: newId(),
+      proposalId: id,
+      catalogSku: cat.sku,
+      name: cat.name,
+      unit: cat.unit,
+      quantity,
+      unitPriceCents: cat.unitPriceCents,
+      marginPct: cat.defaultMarginPct,
+      lineTotalCents: lineTotal,
+      taxable: cat.taxable,
+      confidence: null,
+      isFlagged: quantity <= 0,
+      flagReason: quantity <= 0 ? "missing_quantity" : null,
+      source: "manual",
+      sortOrder: 999,
+    });
+    await recomputeAndSave(db, id);
+  }
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── delete a line item ────────────────────────────────────────────────
+proposals.post("/:id/line-items/:lineId/delete", async (c) => {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  await db
+    .delete(proposalLineItems)
+    .where(eq(proposalLineItems.id, c.req.param("lineId")));
+  await recomputeAndSave(db, id);
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+export default proposals;
