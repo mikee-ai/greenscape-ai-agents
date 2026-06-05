@@ -41,6 +41,7 @@ const env: Env = {
   OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
   LOCAL_LLM_MODEL: process.env.LOCAL_LLM_MODEL,
   WHISPER_URL: process.env.WHISPER_URL,
+  GOTENBERG_URL: process.env.GOTENBERG_URL,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "",
   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? "",
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ?? "",

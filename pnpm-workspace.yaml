@@ -1,0 +1,9 @@
+allowBuilds:
+  esbuild: set this to true or false
+  sharp: set this to true or false
+  workerd: set this to true or false
+minimumReleaseAgeExclude:
+  - '@cloudflare/vitest-pool-workers@0.16.13'
+  - '@cloudflare/workers-types@4.20260605.1'
+  - miniflare@4.20260603.0
+  - wrangler@4.98.0

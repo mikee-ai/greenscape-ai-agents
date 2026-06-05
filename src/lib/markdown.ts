@@ -1,48 +1,33 @@
 /**
- * Tiny, safe markdown → HTML renderer. HTML is escaped FIRST, then a small set
- * of inline/block rules is applied — so model-written prose can never inject
- * markup. Handles: ## / ### headings, - / * bullet lists, **bold**, *italic*,
- * and paragraphs. Output is wrapped with hono `raw()` at the call site.
+ * Markdown → HTML for model-written proposal prose. Uses markdown-it with
+ * `html: false`, so raw HTML in the source is ESCAPED (the model can never
+ * inject markup) while the full markdown feature set — tables, links, images,
+ * ordered/unordered lists, blockquotes, code — renders. Output is wrapped with
+ * hono `raw()` at the call site.
+ *
+ * Headings are shifted down two levels (`#` → <h3>, `##` → <h4>, …) so that
+ * AI-written subheadings stay visually subordinate to the page's section <h3>s.
  */
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+import MarkdownIt from "markdown-it";
 
-function inline(s: string): string {
-  return s
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>");
-}
+const md = new MarkdownIt({
+  html: false, // escape raw HTML — prose is model-generated and untrusted
+  linkify: true, // turn bare URLs into links
+  breaks: true, // single newline → <br> (matches the old paragraph feel)
+  typographer: true, // smart quotes / dashes for a polished look
+});
 
-export function renderMarkdown(md: string | null | undefined): string {
-  if (!md) return "";
-  const lines = escapeHtml(md).split(/\r?\n/);
-  let html = "";
-  let inList = false;
-  const closeList = () => {
-    if (inList) {
-      html += "</ul>";
-      inList = false;
+// Shift every heading down two levels so prose headings sit under section <h3>s.
+md.core.ruler.push("downshift_headings", (state) => {
+  for (const t of state.tokens) {
+    if (t.type === "heading_open" || t.type === "heading_close") {
+      const level = Math.min(6, Number(t.tag.slice(1)) + 2);
+      t.tag = `h${level}`;
     }
-  };
-
-  for (const line of lines) {
-    const t = line.trim();
-    if (/^[-*]\s+/.test(t)) {
-      if (!inList) {
-        html += "<ul>";
-        inList = true;
-      }
-      html += `<li>${inline(t.replace(/^[-*]\s+/, ""))}</li>`;
-      continue;
-    }
-    closeList();
-    if (!t) continue;
-    if (/^###\s+/.test(t)) html += `<h4>${inline(t.replace(/^###\s+/, ""))}</h4>`;
-    else if (/^##\s+/.test(t)) html += `<h3>${inline(t.replace(/^##\s+/, ""))}</h3>`;
-    else if (/^#\s+/.test(t)) html += `<h3>${inline(t.replace(/^#\s+/, ""))}</h3>`;
-    else html += `<p>${inline(t)}</p>`;
   }
-  closeList();
-  return html;
+});
+
+export function renderMarkdown(input: string | null | undefined): string {
+  if (!input) return "";
+  return md.render(input);
 }

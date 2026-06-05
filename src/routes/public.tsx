@@ -14,6 +14,7 @@ import {
 import { logEvent } from "../services/events.ts";
 import { PUBLIC_STATUSES } from "../services/stateMachine.ts";
 import { createDepositOrder, captureOrder, paypalConfigured } from "../services/paypal.ts";
+import { buildProposalPdf, proposalFilename } from "../services/pdf.tsx";
 
 const pub = new Hono<AppEnv>();
 
@@ -31,8 +32,37 @@ pub.get("/:token", async (c) => {
   const data = await getProposalWithItems(db, p.id);
   if (!data) return c.html(doc(<PublicNotReady />), 404);
   return c.html(
-    doc(<PublicProposal proposal={data.proposal} lead={data.lead} items={data.items} paypalEnabled={paypalConfigured(c.env)} />),
+    doc(
+      <PublicProposal
+        proposal={data.proposal}
+        lead={data.lead}
+        items={data.items}
+        paypalEnabled={paypalConfigured(c.env)}
+        pdfEnabled={!!c.env.GOTENBERG_URL}
+      />,
+    ),
   );
+});
+
+// Customer PDF download (same status gate as the page).
+pub.get("/:token/pdf", async (c) => {
+  if (!c.env.GOTENBERG_URL) return c.text("PDF export is not configured.", 503);
+  const db = getDb(c.env.DB);
+  const p = await getProposalByToken(db, c.req.param("token"));
+  if (!p || !PUBLIC_STATUSES.has(p.status as ProposalStatus)) return c.notFound();
+  const data = await getProposalWithItems(db, p.id);
+  if (!data) return c.notFound();
+  try {
+    const pdf = await buildProposalPdf(c.env.GOTENBERG_URL, data);
+    const disposition = c.req.query("download") ? "attachment" : "inline";
+    return c.body(pdf, 200, {
+      "content-type": "application/pdf",
+      "content-disposition": `${disposition}; filename="${proposalFilename(data.lead)}"`,
+    });
+  } catch (err) {
+    console.error("public pdf export failed:", err);
+    return c.text("PDF generation failed.", 502);
+  }
 });
 
 // Start a PayPal deposit checkout (creates a fresh order, then redirects).

@@ -28,11 +28,13 @@
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.23",
+    "markdown-it": "^14.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.16.13",
     "@cloudflare/workers-types": "^4.20260605.1",
+    "@types/markdown-it": "^14.1.2",
     "drizzle-kit": "^0.31.10",
     "esbuild": "^0.28.0",
     "typescript": "^6.0.3",

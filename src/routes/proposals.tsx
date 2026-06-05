@@ -6,6 +6,9 @@ import { proposalLineItems, proposals as proposalsTable } from "../db/schema.ts"
 import { Layout, doc } from "../ui/layout.tsx";
 import { PageHead, StatusBadge, Section, EmptyState } from "../ui/components.tsx";
 import { DraftNotesForm, GeneratingView, ReviewView } from "../ui/proposal.tsx";
+import { PublicProposal } from "../ui/public.tsx";
+import { paypalConfigured } from "../services/paypal.ts";
+import { buildProposalPdf, proposalFilename } from "../services/pdf.tsx";
 import {
   approveAndSend,
   createProposal,
@@ -142,6 +145,7 @@ proposals.get("/:id", async (c) => {
               locked={!EDITABLE.has(proposal.status)}
               publicUrl={`${c.env.PUBLIC_BASE_URL}/p/${proposal.publicToken}`}
               error={c.req.query("error")}
+              pdfEnabled={!!c.env.GOTENBERG_URL}
             />
           )}
         </Section>
@@ -156,6 +160,43 @@ proposals.get("/:id/status", async (c) => {
   const p = await getProposal(db, c.req.param("id"));
   if (!p) return c.json({ error: "not found" }, 404);
   return c.json({ status: p.status, needsReviewReason: p.needsReviewReason, totalCents: p.totalCents });
+});
+
+// ── live customer preview (admin-only; renders at any status) ─────────
+proposals.get("/:id/preview", async (c) => {
+  const db = getDb(c.env.DB);
+  const data = await getProposalWithItems(db, c.req.param("id"));
+  if (!data) return c.notFound();
+  return c.html(
+    doc(
+      <PublicProposal
+        proposal={data.proposal}
+        lead={data.lead}
+        items={data.items}
+        paypalEnabled={paypalConfigured(c.env)}
+        pdfEnabled={!!c.env.GOTENBERG_URL}
+      />,
+    ),
+  );
+});
+
+// ── PDF export (self-hosted Gotenberg sidecar) ────────────────────────
+proposals.get("/:id/pdf", async (c) => {
+  if (!c.env.GOTENBERG_URL) return c.text("PDF export is not configured.", 503);
+  const db = getDb(c.env.DB);
+  const data = await getProposalWithItems(db, c.req.param("id"));
+  if (!data) return c.notFound();
+  try {
+    const pdf = await buildProposalPdf(c.env.GOTENBERG_URL, data);
+    const disposition = c.req.query("download") ? "attachment" : "inline";
+    return c.body(pdf, 200, {
+      "content-type": "application/pdf",
+      "content-disposition": `${disposition}; filename="${proposalFilename(data.lead)}"`,
+    });
+  } catch (err) {
+    console.error("pdf export failed:", err);
+    return c.text("PDF generation failed.", 502);
+  }
 });
 
 // ── generate (first run) ──────────────────────────────────────────────

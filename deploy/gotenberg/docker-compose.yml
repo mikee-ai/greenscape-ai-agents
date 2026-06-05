@@ -1,0 +1,15 @@
+# Self-hosted Gotenberg — Chromium HTML→PDF, used for proposal PDF export.
+# Same integration pattern as the Whisper ASR sidecar: bound to localhost and
+# reached from the Node host via GOTENBERG_URL (default http://localhost:3005).
+#
+#   cd deploy/gotenberg && docker compose up -d
+#   curl -s http://localhost:3005/health
+#
+services:
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: gotenberg
+    restart: unless-stopped
+    # Bound to loopback only — never expose Gotenberg publicly.
+    ports:
+      - "127.0.0.1:3005:3000"

@@ -85,11 +85,29 @@ export const ReviewView: FC<{
   locked: boolean;
   publicUrl: string;
   error?: string | null;
-}> = ({ proposal, lead, items, catalog, locked, publicUrl, error }) => {
+  pdfEnabled?: boolean;
+}> = ({ proposal, lead, items, catalog, locked, publicUrl, error, pdfEnabled }) => {
   const flagged = items.filter((i) => i.isFlagged);
+  const previewUrl = `/admin/proposals/${proposal.id}/preview`;
+  const pdfUrl = `/admin/proposals/${proposal.id}/pdf`;
   return (
     <div class="stack" style="--gap:20px">
       {error && APPROVE_ERROR[error] ? <div class="alert danger">{APPROVE_ERROR[error]}</div> : null}
+
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="row between wrap" style="padding:16px 20px">
+          <div>
+            <h2 style="margin:0">👁 Client preview</h2>
+            <p class="hint" style="margin:2px 0 0">Exactly what your client sees — refreshes each time you Save.</p>
+          </div>
+          <div class="row">
+            <a class="btn btn-ghost btn-sm" href={previewUrl} target="_blank">Open ↗</a>
+            {pdfEnabled ? <a class="btn btn-ghost btn-sm" href={pdfUrl} target="_blank">Preview PDF ↗</a> : null}
+            {pdfEnabled ? <a class="btn btn-primary btn-sm" href={`${pdfUrl}?download=1`}>⬇ Download PDF</a> : null}
+          </div>
+        </div>
+        <iframe src={previewUrl} title="Client preview" style="width:100%;height:720px;border:0;border-top:1px solid var(--sand-200);background:#fff"></iframe>
+      </div>
 
       {locked ? (
         <div class="card" style="border-color:var(--green-100);background:var(--green-50)">

@@ -19,6 +19,8 @@ export interface Env {
   LOCAL_LLM_MODEL?: string;
   /** Self-hosted Whisper (ASR) base URL for the Dictate feature, e.g. http://localhost:9180 */
   WHISPER_URL?: string;
+  /** Self-hosted Gotenberg base URL for PDF export, e.g. http://localhost:3005 */
+  GOTENBERG_URL?: string;
 
   // ── secrets (wrangler secret put) ──
   ANTHROPIC_API_KEY: string;
