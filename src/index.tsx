@@ -5,6 +5,7 @@ import { Layout, doc } from "./ui/layout.tsx";
 import { Landing } from "./ui/landing.tsx";
 import webhookRoutes from "./routes/webhook.ts";
 import adminRoutes from "./routes/admin.tsx";
+import publicRoutes from "./routes/public.tsx";
 
 const app = new Hono<AppEnv>();
 
@@ -24,8 +25,8 @@ app.route("/webhook", webhookRoutes);
 // Internal admin tool (auth-gated inside the sub-app).
 app.route("/admin", adminRoutes);
 
-// Customer-facing proposal pages mount here in a later milestone:
-//   app.route("/p", publicRoutes);
+// Customer-facing proposal pages (+ PayPal pay/return).
+app.route("/p", publicRoutes);
 
 // ── error + 404 handling (never leak a raw stack to the client) ──
 app.notFound((c) =>

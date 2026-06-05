@@ -7,10 +7,13 @@ import { Layout, doc } from "../ui/layout.tsx";
 import { PageHead, StatusBadge, Section, EmptyState } from "../ui/components.tsx";
 import { DraftNotesForm, GeneratingView, ReviewView } from "../ui/proposal.tsx";
 import {
+  approveAndSend,
   createProposal,
   getProposal,
   getProposalWithItems,
   listProposals,
+  markDepositPaid,
+  markLost,
   recomputeAndSave,
   runProposalGeneration,
   saveSiteWalkNotes,
@@ -106,7 +109,15 @@ proposals.get("/:id", async (c) => {
           ) : generating ? (
             <GeneratingView />
           ) : (
-            <ReviewView proposal={proposal} lead={lead} items={items} catalog={catalog} locked={!EDITABLE.has(proposal.status)} />
+            <ReviewView
+              proposal={proposal}
+              lead={lead}
+              items={items}
+              catalog={catalog}
+              locked={!EDITABLE.has(proposal.status)}
+              publicUrl={`${c.env.PUBLIC_BASE_URL}/p/${proposal.publicToken}`}
+              error={c.req.query("error")}
+            />
           )}
         </Section>
       </Layout>,
@@ -230,6 +241,32 @@ proposals.post("/:id/line-items/:lineId/delete", async (c) => {
     .delete(proposalLineItems)
     .where(eq(proposalLineItems.id, c.req.param("lineId")));
   await recomputeAndSave(db, id);
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── approve & send (idempotent; emails customer via SES) ──────────────
+proposals.post("/:id/approve", async (c) => {
+  const id = c.req.param("id");
+  const result = await approveAndSend(c.env, id);
+  if (!result.ok) return c.redirect(`/admin/proposals/${id}?error=${result.reason}`);
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── mark lost (returns lead to the closed-lost pile) ──────────────────
+proposals.post("/:id/lost", async (c) => {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  await markLost(db, id);
+  await logEvent(db, { type: "proposal.lost", proposalId: id });
+  return c.redirect(`/admin/proposals/${id}`);
+});
+
+// ── simulate deposit paid (demo fallback so a live demo never depends on
+//    a sandbox PayPal redirect completing) ───────────────────────────────
+proposals.post("/:id/simulate-paid", async (c) => {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  await markDepositPaid(db, id);
   return c.redirect(`/admin/proposals/${id}`);
 });
 

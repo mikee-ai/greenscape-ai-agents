@@ -56,6 +56,12 @@ export const GeneratingView: FC = () => (
   </div>
 );
 
+const APPROVE_ERROR: Record<string, string> = {
+  unpriced: "Some line items are unpriced or flagged. Set a price and quantity on every row before sending.",
+  no_items: "Add at least one line item before sending.",
+  not_reviewable: "This proposal can no longer be edited.",
+};
+
 // ── needs_review / approved / etc: review (editable unless locked) ─────
 export const ReviewView: FC<{
   proposal: Proposal;
@@ -63,10 +69,38 @@ export const ReviewView: FC<{
   items: LineItem[];
   catalog: CatalogItem[];
   locked: boolean;
-}> = ({ proposal, lead, items, catalog, locked }) => {
+  publicUrl: string;
+  error?: string | null;
+}> = ({ proposal, lead, items, catalog, locked, publicUrl, error }) => {
   const flagged = items.filter((i) => i.isFlagged);
   return (
     <div class="stack" style="--gap:20px">
+      {error && APPROVE_ERROR[error] ? <div class="alert danger">{APPROVE_ERROR[error]}</div> : null}
+
+      {locked ? (
+        <div class="card" style="border-color:var(--green-100);background:var(--green-50)">
+          <div class="row between wrap">
+            <div>
+              <h3 style="margin:0">
+                {proposal.status === "deposit_paid" ? "✅ Deposit paid — won!" : proposal.status === "viewed" ? "👀 Sent · viewed by customer" : proposal.status === "lost" ? "Marked lost" : "✓ Sent to customer"}
+              </h3>
+              <p class="muted" style="margin:4px 0 0">
+                {proposal.emailMessageId ? "Emailed via SES. " : ""}
+                Public link: <a href={publicUrl} target="_blank">{publicUrl}</a>
+              </p>
+            </div>
+            <div class="row">
+              <a class="btn btn-ghost btn-sm" href={publicUrl} target="_blank">Open customer page ↗</a>
+              {proposal.status !== "deposit_paid" && proposal.status !== "lost" ? (
+                <form method="post" action={`/admin/proposals/${proposal.id}/simulate-paid`}>
+                  <button class="btn btn-primary btn-sm" type="submit">Simulate deposit paid</button>
+                </form>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {proposal.needsReviewReason && REVIEW_REASON[proposal.needsReviewReason] && !locked ? (
         <div class={`alert ${proposal.needsReviewReason === "parse_failed" ? "danger" : "warn"}`}>
           {REVIEW_REASON[proposal.needsReviewReason]}
@@ -168,8 +202,25 @@ export const ReviewView: FC<{
         </div>
       </div>
 
-      {flagged.length > 0 && !locked ? (
-        <p class="hint">⚑ {flagged.length} item(s) flagged — review before sending.</p>
+      {!locked ? (
+        <div class="card row between wrap" style="gap:12px">
+          <div>
+            <strong>Send this proposal?</strong>
+            <p class="muted" style="margin:2px 0 0">
+              {flagged.length > 0
+                ? `⚑ ${flagged.length} item(s) still flagged — resolve them first.`
+                : "Approve to email the customer their proposal + a 50% deposit link."}
+            </p>
+          </div>
+          <div class="row">
+            <form method="post" action={`/admin/proposals/${proposal.id}/lost`}>
+              <button class="btn btn-danger" type="submit">Mark lost</button>
+            </form>
+            <form method="post" action={`/admin/proposals/${proposal.id}/approve`}>
+              <button class="btn btn-primary btn-lg" type="submit">✓ Approve &amp; Send</button>
+            </form>
+          </div>
+        </div>
       ) : null}
     </div>
   );

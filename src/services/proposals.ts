@@ -11,6 +11,7 @@ import { extractScope } from "../ai/extract.ts";
 import { draftProposalCopy } from "../ai/draft.ts";
 import { mapScopeToLineItems } from "../pricing/mapScope.ts";
 import { computeTotals } from "../pricing/compute.ts";
+import { sendProposalEmail } from "./ses.ts";
 
 export async function createProposal(db: DB, leadId: string): Promise<string> {
   const id = newId();
@@ -170,6 +171,81 @@ export async function runProposalGeneration(env: Env, proposalId: string): Promi
       .where(eq(proposals.id, proposalId));
     await logEvent(db, { type: "extraction.failed", status: "error", proposalId, detail: { error: String(err) } });
   }
+}
+
+export type ApproveResult =
+  | { ok: true }
+  | { ok: false; reason: "not_reviewable" | "unpriced" | "no_items" };
+
+/**
+ * Approve & Send: needs_review → approved → sent. Idempotent (no-op if already
+ * past needs_review). Blocks if any line item is unpriced/flagged-unmapped.
+ * The SES email is best-effort: a failure still marks the proposal "sent" (the
+ * public link works) and is recorded as an event.
+ */
+export async function approveAndSend(env: Env, proposalId: string): Promise<ApproveResult> {
+  const db = getDb(env.DB);
+  const data = await getProposalWithItems(db, proposalId);
+  if (!data) return { ok: false, reason: "not_reviewable" };
+  const { proposal, lead, items } = data;
+
+  if (proposal.status !== "needs_review") return { ok: false, reason: "not_reviewable" };
+  if (items.length === 0) return { ok: false, reason: "no_items" };
+  if (items.some((i) => i.unitPriceCents <= 0 || i.quantity <= 0)) return { ok: false, reason: "unpriced" };
+
+  const t = now();
+  await db.update(proposals).set({ status: "approved", approvedAt: t, updatedAt: t }).where(eq(proposals.id, proposalId));
+  await logEvent(db, { type: "proposal.approved", proposalId, leadId: proposal.leadId, detail: { totalCents: proposal.totalCents } });
+
+  // Email is best-effort (idempotent via emailMessageId null-guard).
+  if (lead?.email && !proposal.emailMessageId) {
+    try {
+      const res = await sendProposalEmail(env, {
+        to: lead.email,
+        clientName: lead.name,
+        totalCents: proposal.totalCents ?? 0,
+        depositCents: proposal.depositCents ?? 0,
+        publicUrl: `${env.PUBLIC_BASE_URL}/p/${proposal.publicToken}`,
+      });
+      await db.update(proposals).set({ emailMessageId: res.messageId }).where(eq(proposals.id, proposalId));
+      await logEvent(db, { type: "email.sent", proposalId, detail: { to: lead.email, messageId: res.messageId } });
+    } catch (err) {
+      await logEvent(db, { type: "email.failed", status: "error", proposalId, detail: { to: lead.email, error: String(err) } });
+    }
+  } else if (!lead?.email) {
+    await logEvent(db, { type: "email.skipped", proposalId, detail: { reason: "no lead email" } });
+  }
+
+  await db.update(proposals).set({ status: "sent", sentAt: now(), updatedAt: now() }).where(eq(proposals.id, proposalId));
+  return { ok: true };
+}
+
+export async function markLost(db: DB, proposalId: string) {
+  const p = await getProposal(db, proposalId);
+  if (!p) return;
+  await db.update(proposals).set({ status: "lost", updatedAt: now() }).where(eq(proposals.id, proposalId));
+  // returns the lead to the closed-lost pile (reactivation candidate)
+  if (p.leadId) await db.update(leads).set({ lifecycle: "closed_lost", closedLostReason: "quote_lost", closedLostAt: now() }).where(eq(leads.id, p.leadId));
+}
+
+/** Mark first customer view (sent → viewed). Idempotent. */
+export async function markViewed(db: DB, proposalId: string) {
+  const p = await getProposal(db, proposalId);
+  if (p && p.status === "sent") {
+    await db.update(proposals).set({ status: "viewed", viewedAt: now(), updatedAt: now() }).where(eq(proposals.id, proposalId));
+  }
+}
+
+export async function markDepositPaid(db: DB, proposalId: string) {
+  const p = await getProposal(db, proposalId);
+  if (!p || p.status === "deposit_paid") return;
+  await db.update(proposals).set({ status: "deposit_paid", paidAt: now(), updatedAt: now() }).where(eq(proposals.id, proposalId));
+  await logEvent(db, { type: "deposit.paid", proposalId, leadId: p.leadId, detail: { depositCents: p.depositCents } });
+  if (p.leadId) await db.update(leads).set({ lifecycle: "won" }).where(eq(leads.id, p.leadId));
+}
+
+export async function savePaypalOrder(db: DB, proposalId: string, orderId: string, approveUrl: string) {
+  await db.update(proposals).set({ paypalOrderId: orderId, paypalApproveUrl: approveUrl, updatedAt: now() }).where(eq(proposals.id, proposalId));
 }
 
 /** Recompute totals from the current line items (after manual edits). */
