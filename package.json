@@ -15,11 +15,16 @@
     "db:migrate:remote": "wrangler d1 migrations apply greenscape --remote",
     "db:seed:local": "wrangler d1 execute greenscape --local --file=./seed/seed.sql",
     "db:seed:remote": "wrangler d1 execute greenscape --remote --file=./seed/seed.sql",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "build:node": "esbuild src/server.ts --bundle --platform=node --format=esm --packages=external --jsx=automatic --jsx-import-source=hono/jsx --outfile=dist/server.mjs",
+    "start:node": "node dist/server.mjs",
+    "db:setup:node": "node scripts/db-setup.mjs"
   },
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
+    "@hono/node-server": "^2.0.4",
+    "@libsql/client": "^0.17.3",
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.23",
@@ -29,6 +34,7 @@
     "@cloudflare/vitest-pool-workers": "^0.16.13",
     "@cloudflare/workers-types": "^4.20260605.1",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8",
     "wrangler": "^4.98.0"

@@ -4,8 +4,8 @@
  */
 export interface Env {
   // ── bindings ──
-  DB: D1Database;
-  ASSETS: Fetcher;
+  DB: any; // D1Database (Workers) or a Drizzle libSQL instance (Node)
+  ASSETS?: Fetcher;
 
   // ── vars (wrangler.jsonc) ──
   PUBLIC_BASE_URL: string;
