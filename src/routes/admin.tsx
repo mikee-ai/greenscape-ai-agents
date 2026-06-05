@@ -12,12 +12,15 @@ import { timeAgo, formatDate } from "../lib/time.ts";
 import { dollarsToCents } from "../lib/money.ts";
 import { adminAuth } from "../lib/auth.ts";
 import proposalsRouter from "./proposals.tsx";
+import reactivationRouter from "./reactivation.tsx";
 
 const admin = new Hono<AppEnv>();
 admin.use("*", adminAuth);
 
-// Speed-to-Quote proposal routes (list, create, generate, review, edit).
+// Agent #1: Speed-to-Quote proposal routes (list, create, generate, review, edit).
 admin.route("/proposals", proposalsRouter);
+// Agent #2: Closed-Lost Reactivation routes.
+admin.route("/reactivation", reactivationRouter);
 
 const PROJECT_TYPES = [
   "paver_patio", "pool_deck", "outdoor_kitchen", "full_yard", "fire_feature",
@@ -209,20 +212,6 @@ admin.get("/leads/:id", async (c) => {
     ),
   );
 });
-
-// ── reactivation tab stub (built in a later milestone) ────────────────
-admin.get("/reactivation", (c) =>
-  c.html(
-    doc(
-      <Layout nav="admin" active="reactivation" title="Reactivation">
-        <Section>
-          <PageHead title="Closed-Lost Reactivation" />
-          <EmptyState title="The Reactivation agent lands here" hint="1,400 dead leads → personalized, Marcus-voiced outreach." />
-        </Section>
-      </Layout>,
-    ),
-  ),
-);
 
 // ── tiny helpers ──────────────────────────────────────────────────────
 function str(v: unknown): string | undefined {
