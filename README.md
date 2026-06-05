@@ -13,10 +13,19 @@ hardscape/landscape design-build company — for the **License & Scale** AI Deve
 
 ## 🎬 Walkthrough videos
 
-Two narrated walkthroughs embedded in this repo (they also play inline on the [live site](https://greenscape.licensescale.com)):
+### Product walkthrough (6:49)
 
-- **▶ Product walkthrough (6:49)** — a real proposal generated, edited, sent, and closed against a **live GoHighLevel** account → [`public/hero-demo.mp4`](./public/hero-demo.mp4)
-- **▶ Built with Claude Code (3:19)** — how the whole system was built, end to end → [`public/build-demo.mp4`](./public/build-demo.mp4)
+A real proposal generated, edited, sent, and closed against a **live GoHighLevel** account.
+
+https://github.com/user-attachments/assets/de450671-0b42-46d1-9885-839adbd918ee
+
+### Built with Claude Code (3:19)
+
+How the whole system was built, end to end.
+
+https://github.com/user-attachments/assets/2c47667e-9a48-4fac-ab85-0f677d91e7c6
+
+*Also playing on the [live site](https://greenscape.licensescale.com); full-quality copies are committed in [`public/`](./public) for self-hosting.*
 
 ---
 
