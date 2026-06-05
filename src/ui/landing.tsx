@@ -157,10 +157,10 @@ export const Landing: FC = () => (
           controlslist="nodownload"
           playsinline
           preload="auto"
-          poster="/explainer-poster.jpg?v=2"
+          poster="/explainer-poster.jpg?v=3"
           style="display:block;width:100%;height:auto;border-radius:16px;background:#0a0d0b;border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 70px rgba(0,0,0,.45)"
         >
-          <source src="/explainer.mp4?v=2" type="video/mp4" />
+          <source src="/explainer.mp4?v=3" type="video/mp4" />
         </video>
         <button
           id="explainer-unmute"
