@@ -13,6 +13,11 @@ export interface Env {
   SES_FROM: string;
   AWS_REGION: string;
 
+  // ── LLM provider (local Ollama or Anthropic) ──
+  LLM_PROVIDER?: "local" | "anthropic";
+  OLLAMA_BASE_URL?: string;
+  LOCAL_LLM_MODEL?: string;
+
   // ── secrets (wrangler secret put) ──
   ANTHROPIC_API_KEY: string;
   AWS_ACCESS_KEY_ID: string;
