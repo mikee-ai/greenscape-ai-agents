@@ -1,0 +1,39 @@
+{
+  // Greenscape Pro — Speed-to-Quote + Reactivation agents (License & Scale take-home)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "greenscape-ai-agents",
+  "main": "src/index.tsx",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+
+  // Bind the public production hostname. Requires mikee.ai to be an active zone
+  // on this Cloudflare account, with no pre-existing CNAME on the subdomain.
+  "routes": [{ "pattern": "licenseandscale.mikee.ai", "custom_domain": true }],
+
+  // Persistent storage — real SQL database (NOT localStorage/JSON).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "greenscape",
+      "database_id": "PLACEHOLDER_REPLACED_AFTER_D1_CREATE",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Static assets (hand-written CSS design system, favicon, og image).
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  "vars": {
+    "PUBLIC_BASE_URL": "https://licenseandscale.mikee.ai",
+    "PAYPAL_ENV": "sandbox",
+    "SES_FROM": "proposals@mikee.ai",
+    "AWS_REGION": "us-east-1"
+  },
+
+  "observability": { "enabled": true }
+
+  // Secrets (set via `wrangler secret put <NAME>`), never committed:
+  //   ANTHROPIC_API_KEY, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+  //   PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, ADMIN_PASSWORD
+}

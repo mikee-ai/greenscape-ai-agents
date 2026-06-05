@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# secrets — never commit
+.dev.vars
+.env
+.env.*
+!.env.example
+*.pem
+
+# build / cache
+dist/
+.wrangler/
+.mf/
+worker-configuration.d.ts
+
+# os / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# local db artifacts
+*.sqlite
+*.sqlite3

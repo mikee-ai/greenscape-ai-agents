@@ -1,0 +1,21 @@
+# Local development secrets for `wrangler dev`.
+# Copy to `.dev.vars` (gitignored) and fill in. For production use `wrangler secret put <NAME>`.
+
+# ── Required: the real LLM integration ───────────────────────────────
+ANTHROPIC_API_KEY="sk-ant-..."
+
+# ── Email: Amazon SES (sender domain/email must be verified in SES) ──
+AWS_ACCESS_KEY_ID="AKIA..."
+AWS_SECRET_ACCESS_KEY="..."
+# AWS_REGION and SES_FROM are non-secret and live in wrangler.jsonc [vars],
+# but you can override them locally here if needed:
+# AWS_REGION="us-east-1"
+# SES_FROM="proposals@mikee.ai"
+
+# ── Payments: PayPal (Sandbox) ───────────────────────────────────────
+PAYPAL_CLIENT_ID="..."
+PAYPAL_CLIENT_SECRET="..."
+# PAYPAL_ENV lives in wrangler.jsonc [vars] (sandbox|live)
+
+# ── Admin gate (simple shared password for the internal admin UI) ────
+ADMIN_PASSWORD="change-me"
